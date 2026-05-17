@@ -338,3 +338,66 @@
 // console.log(fibonacci(13))
 // console.log(fibonacci(14))
 // console.log(fibonacci(15))
+
+
+
+
+
+
+
+// find duplicate from array
+
+
+
+// const arr = [1,2,3,4,5,6,7,8,2,3,6,4,2,6];
+
+
+
+// const findDuplicate = (Array) => {
+
+//     let map = {};
+
+
+//     for (let i = 0; i < Array.length; i++) {
+//         const element = Array[i];
+
+//         if(!map[element]){
+//             map[element] = 1;
+//         }else{
+//             map[element] = map[element] + 1
+//         }
+//     }
+
+//     for(const a in map) {
+//         if(map[a]>1)
+//             console.log(a) 
+//     }
+// } 
+
+// findDuplicate(arr)
+
+
+
+
+
+
+// let arr = [1,2,[3,4,[5]]];  
+
+// const flatArray = (rajiv) => {
+//     let newArr = [];
+
+//     for(let i=0;i<rajiv.length;i++){
+//         if(Array.isArray(rajiv[i])){
+//             let value = flatArray(rajiv[i]);
+//             newArr.push(...value);
+//         }else{
+//             newArr.push(rajiv[i]);
+//         }
+//     }
+//     return newArr;
+
+// }
+// console.log(flatArray(arr));
+
+
+

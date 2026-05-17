@@ -28,6 +28,7 @@
 16. [Questions to Ask the Interviewer](#16-questions-to-ask-the-interviewer)
 17. [Last 2 Days Revision Plan](#17-last-2-days-revision-plan)
 18. [Quick Revision Cheatsheet](#18-quick-revision-cheatsheet)
+19. [Capgemini – Liberty Mutual Client: Interview Intelligence](#19-capgemini--liberty-mutual-client-interview-intelligence)
 
 ---
 
@@ -749,57 +750,765 @@ CloudFormation creates/updates only changed resources
 
 ---
 
-### PROJECT 2: P&G Olay – BigCommerce → Shopify Migration (LTIMindtree)
+### PROJECT 2: P&G Olay – BigCommerce → Shopify Migration (LTIMindtree, May 2025 – March 2026)
 
-#### Q: Explain the migration architecture.
-**A:** "We migrated P&G Olay's e-commerce data from BigCommerce to Shopify:
-
-```
-BigCommerce v2/v3 APIs → Azure Functions (Extraction + Transformation) → Shopify GraphQL Mutations
-```
-
-**Pipeline:**
-1. **Extract:** Pull product catalogs, categories, variants, pricing from BigCommerce v2/v3 REST APIs
-2. **Transform:** Map BigCommerce schemas to Shopify-compatible formats (different field names, nested structures, variant groupings)
-3. **Load:** Push to Shopify using GraphQL `productCreate`, `productUpdate` mutations
-
-**Scale:** Thousands of SKUs with hundreds of variants each."
-
-#### Q: How did you achieve 50% faster processing?
-**A:** "Two key optimizations:
-
-1. **Batch operations:** Instead of processing products one-by-one, I batched them into groups of 50 for API calls. BigCommerce v3 supported pagination with `?limit=250`, so we fetched in larger chunks.
-
-2. **Parallelism:** Used `Promise.allSettled()` to run multiple batch operations concurrently:
-```javascript
-const batches = chunkArray(products, 50);
-const results = await Promise.allSettled(
-  batches.map(batch => processAndUpload(batch))
-);
-// Handle individual failures without blocking others
-```
-
-3. **Connection reuse:** Used `keep-alive` HTTP agents to reuse TCP connections to Shopify's API, reducing handshake overhead."
-
-#### Q: How did you ensure 100% data consistency?
-**A:** "Multi-layer verification:
-1. **Idempotency keys** — Each product had a unique migration key. Re-running the migration wouldn't create duplicates.
-2. **Checksum validation** — After migration, compared source vs destination counts + sampled 10% of products for field-level comparison
-3. **Distributed locking** — Azure Blob lease to prevent multiple Function instances from processing the same data range
-4. **Reconciliation report** — Automated script that compared BigCommerce product count, variant count, and pricing with Shopify post-migration"
+> E-commerce data migration for P&G Olay — extracting product catalogs from BigCommerce, transforming to Shopify-compatible schemas, and inserting into Shopify via GraphQL. Built on Azure Functions with batch processing, worker thread parallelism, and robust resume/retry mechanisms.
 
 ---
 
-### PROJECT 3: EY Risk.ai – AI Agent Upgrade (LTIMindtree)
+#### Q: Walk me through the P&G Olay migration architecture.
+
+**A:** "The migration was a classic ETL pipeline divided into **3 clear steps**, each running as separate Azure Functions:
+
+```
+STEP 1: EXTRACTION                STEP 2: TRANSFORMATION           STEP 3: INSERTION
+─────────────────────             ────────────────────────          ──────────────────
+BigCommerce v2/v3 APIs            Data Mapping & Schema             Shopify GraphQL API
+        │                         Transformation                           │
+        ▼                                │                                 ▼
+Azure Function                    Azure Function                    Azure Function
+(extractProducts)                 (transformProducts)               (insertToShopify)
+        │                                │                                 │
+        ▼                                ▼                                 ▼
+┌─────────────────┐              ┌─────────────────┐              ┌─────────────────┐
+│ Fetch products   │              │ Map BC schema    │              │ Shopify GraphQL  │
+│ in batches       │              │ → Olay/Shopify   │              │ productCreate /  │
+│ (paginated)      │              │ schema           │              │ productUpdate    │
+│                  │              │                  │              │ mutations        │
+│ Worker Threads   │              │ Worker Threads   │              │ Worker Threads   │
+│ for parallelism  │              │ for parallelism  │              │ for parallelism  │
+└────────┬────────┘              └────────┬────────┘              └────────┬────────┘
+         │                                │                                │
+         ▼                                ▼                                ▼
+   Tracking DB                      Tracking DB                      Tracking DB
+   (batch status:                   (batch status:                   (batch status:
+    extracted ✓)                     transformed ✓)                   inserted ✓)
+```
+
+**Why 3 separate steps instead of one pipeline?**
+- Each step can **fail independently** and be **retried independently** — if Shopify API goes down during insertion, extraction and transformation data is safe
+- Each step has different **rate limit characteristics** — BigCommerce has its own limits, Shopify has its own
+- Easier to **debug and monitor** — if data looks wrong in Shopify, I can check: was it extracted correctly? Transformed correctly? Or insertion issue?
+- Can **re-run any single step** without repeating the others"
+
+---
+
+#### Q: How did each step work in detail?
+
+**A:**
+
+**STEP 1 — Extraction from BigCommerce:**
+
+"BigCommerce v2/v3 REST APIs had rate limits, so I couldn't just blast requests.
+
+```javascript
+// Batch extraction with rate limit handling
+async function extractProducts(page, limit = 250) {
+  try {
+    const response = await bigCommerceClient.get(`/v3/catalog/products`, {
+      params: { page, limit, include: 'variants,custom_fields,images' }
+    });
+    return response.data;
+  } catch (err) {
+    if (err.response?.status === 429) {
+      // Rate limited — debounce and retry
+      const retryAfter = parseInt(err.response.headers['x-rate-limit-time-reset-ms']) || 5000;
+      await delay(retryAfter);  // Wait for rate limit window to reset
+      return extractProducts(page, limit);  // Retry same page
+    }
+    throw err;
+  }
+}
+```
+
+**Key patterns:**
+- **Paginated batch fetching** — `?limit=250` per page (BigCommerce v3 max), fetch page-by-page
+- **Rate limit debouncing** — When BigCommerce returns `429 Too Many Requests`, read the `x-rate-limit-time-reset-ms` header, wait that duration, then retry the same request. No data lost, no duplicate fetches.
+- **Worker Threads for parallelism** — Spawned multiple worker threads, each handling different page ranges simultaneously:
+
+```javascript
+const { Worker } = require('worker_threads');
+
+function extractBatch(startPage, endPage) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker('./extractWorker.js', {
+      workerData: { startPage, endPage, batchSize: 250 }
+    });
+    worker.on('message', resolve);
+    worker.on('error', reject);
+  });
+}
+
+// Split total pages across 4 workers
+const totalPages = Math.ceil(totalProducts / 250);
+const pagesPerWorker = Math.ceil(totalPages / 4);
+const results = await Promise.allSettled([
+  extractBatch(1, pagesPerWorker),
+  extractBatch(pagesPerWorker + 1, pagesPerWorker * 2),
+  extractBatch(pagesPerWorker * 2 + 1, pagesPerWorker * 3),
+  extractBatch(pagesPerWorker * 3 + 1, totalPages)
+]);
+```
+
+- **Batch tracking** — After each batch is extracted, update the tracking DB with batch status:
+```javascript
+await trackingDb.updateBatch({
+  batchId: `extract-page-${page}`,
+  status: 'extracted',
+  productCount: products.length,
+  timestamp: new Date(),
+  productIds: products.map(p => p.id)
+});
+```
+
+---
+
+**STEP 2 — Transformation (BigCommerce → Olay/Shopify schema):**
+
+"BigCommerce and Shopify have **completely different data models**. The transformation step mapped everything to Shopify's GraphQL mutation format.
+
+**Schema differences I handled:**
+
+| BigCommerce Field | Shopify Equivalent | Transformation |
+|------------------|--------------------|----------------|
+| `name` | `title` | Direct map |
+| `categories[]` | `collections[]` | Category ID → Collection handle mapping |
+| `variants[].price` | `variants[].price` | String → Decimal conversion |
+| `variants[].sku` | `variants[].sku` | Direct map + uniqueness validation |
+| `custom_fields[]` | `metafields[]` | Key-value → namespace/key/value/type |
+| `images[].url_standard` | `images[].src` | URL format + CDN path adjustment |
+| `brand` | `vendor` | Direct map |
+| `availability` | `status` | 'available' → 'ACTIVE', 'disabled' → 'DRAFT' |
+
+**Key transformation logic:**
+```javascript
+function transformProduct(bcProduct) {
+  return {
+    input: {
+      title: bcProduct.name,
+      vendor: bcProduct.brand || 'P&G Olay',
+      status: bcProduct.availability === 'available' ? 'ACTIVE' : 'DRAFT',
+      productType: bcProduct.type,
+      tags: bcProduct.categories.map(c => c.name),
+      variants: bcProduct.variants.map(v => ({
+        sku: v.sku,
+        price: parseFloat(v.price).toFixed(2),
+        compareAtPrice: v.sale_price ? parseFloat(v.sale_price).toFixed(2) : null,
+        inventoryQuantity: v.inventory_level,
+        weight: v.weight,
+        weightUnit: 'GRAMS',
+        options: extractOptions(v)  // Size, Color, etc.
+      })),
+      metafields: [
+        // Store BigCommerce ID as metadata for reference + duplicate checking
+        {
+          namespace: 'migration',
+          key: 'bigcommerce_id',
+          value: String(bcProduct.id),
+          type: 'single_line_text_field'
+        },
+        {
+          namespace: 'migration',
+          key: 'source_updated_at',
+          value: bcProduct.date_modified,
+          type: 'single_line_text_field'
+        },
+        // Map custom fields to metafields
+        ...bcProduct.custom_fields.map(cf => ({
+          namespace: 'custom',
+          key: cf.name.toLowerCase().replace(/\s/g, '_'),
+          value: cf.value,
+          type: 'single_line_text_field'
+        }))
+      ],
+      images: bcProduct.images.map(img => ({
+        src: img.url_standard,
+        altText: img.description || bcProduct.name
+      }))
+    }
+  };
+}
+```
+
+**Tracking:** Each transformed batch marked as `transformed` in tracking DB with the output payload reference."
+
+---
+
+**STEP 3 — Insertion to Shopify (GraphQL):**
+
+"Shopify's GraphQL Admin API for bulk mutations:
+
+```javascript
+async function insertToShopify(transformedProduct) {
+  // DUPLICATE CHECK — query Shopify by BigCommerce ID stored in metafield
+  const existing = await shopifyClient.query(`{
+    products(first: 1, query: "metafield:migration.bigcommerce_id:${transformedProduct.input.metafields[0].value}") {
+      edges { node { id } }
+    }
+  }`);
+
+  if (existing.data.products.edges.length > 0) {
+    // Product already exists — UPDATE instead of CREATE
+    const shopifyId = existing.data.products.edges[0].node.id;
+    return shopifyClient.mutate(`
+      mutation { productUpdate(input: { id: "${shopifyId}", ...${transformedProduct.input} }) {
+        product { id title }
+        userErrors { field message }
+      }}
+    `);
+  }
+
+  // New product — CREATE
+  return shopifyClient.mutate(`
+    mutation { productCreate(input: $input) {
+      product { id title }
+      userErrors { field message }
+    }}
+  `, { variables: transformedProduct });
+}
+```
+
+**Key patterns:**
+- **Metadata-based duplicate detection** — Before inserting, query Shopify for products with matching `migration.bigcommerce_id` metafield. If found → update. If not → create. This makes the entire pipeline **idempotent** — running it twice doesn't create duplicates.
+- **Worker Threads** — Parallel insertion across multiple threads, each handling different batches
+- **Batch-wise tracking** — Each batch's insertion status tracked. On failure, only the **failed batch retries** — not the entire dataset:
+
+```javascript
+// After insertion attempt
+await trackingDb.updateBatch({
+  batchId: `insert-batch-${batchIndex}`,
+  status: allSucceeded ? 'inserted' : 'partial_failure',
+  successCount,
+  failedProductIds,  // Only these retry
+  shopifyErrors: errors.map(e => ({ productId: e.id, error: e.userErrors })),
+  timestamp: new Date()
+});
+```"
+
+---
+
+#### Q: How did you achieve 50% faster processing?
+
+**A:** "Four optimizations combined:
+
+1. **Worker Thread parallelism** — Instead of sequential processing, I spawned worker threads for each step. Extraction used 4 parallel workers fetching different page ranges. Transformation ran CPU-heavy schema mapping across threads. Insertion used parallel threads for different batches.
+
+2. **Batch processing at every step:**
+   - Extraction: 250 products per API call (BigCommerce max)
+   - Transformation: Batch of 50 products per worker thread
+   - Insertion: Batch of 10-20 products per Shopify GraphQL call (to stay under their rate limit)
+
+3. **Rate limit debouncing (not blocking)** — When BigCommerce returned 429, instead of failing the entire batch, I debounced — waited exactly the time the API told me to wait (`x-rate-limit-time-reset-ms`), then retried only that request. No wasted time, no wasted data.
+
+4. **Resume & retry only failed** — The tracking DB meant we never re-processed successful batches. On a restart after failure, the system checked: 'Which batches are `extracted` but not `transformed`? Which are `transformed` but not `inserted`?' and resumed from exactly where it stopped.
+
+**Before my optimizations:** Sequential processing — extract one → transform one → insert one. With 5000+ products, this took hours.
+**After:** Parallel extraction + parallel transformation + parallel insertion with batch tracking. Same dataset processed in half the time."
+
+---
+
+#### Q: How did the resume and retry mechanism work?
+
+**A:** "Every batch had a lifecycle tracked in the database:
+
+```
+Batch Lifecycle:
+  pending → extracting → extracted → transforming → transformed → inserting → inserted
+                                                                      ↓
+                                                                partial_failure
+                                                                      ↓
+                                                                retry (only failed items)
+```
+
+**On Azure Function restart / crash / timeout:**
+1. Query tracking DB: 'Give me all batches NOT in `inserted` status'
+2. For `pending` / `extracting` → re-extract from BigCommerce (idempotent — same page returns same data)
+3. For `extracted` → pick up transformation from where it stopped
+4. For `transformed` → pick up insertion from where it stopped
+5. For `partial_failure` → retry ONLY the `failedProductIds`, not the entire batch
+
+```javascript
+async function resumeMigration() {
+  // Find incomplete batches
+  const incompleteBatches = await trackingDb.find({
+    status: { $nin: ['inserted'] }
+  });
+
+  for (const batch of incompleteBatches) {
+    switch (batch.status) {
+      case 'extracted':
+        await transformBatch(batch);
+        break;
+      case 'transformed':
+        await insertBatch(batch);
+        break;
+      case 'partial_failure':
+        // Retry ONLY failed products
+        await insertBatch({
+          ...batch,
+          products: batch.products.filter(p => batch.failedProductIds.includes(p.id))
+        });
+        break;
+    }
+  }
+}
+```
+
+**Why this matters:** In one run, 3 batches out of 200 failed due to Shopify rate limiting. Without this system, we'd re-process all 200 batches. With it, we retried just those 3 — saving hours of processing time."
+
+---
+
+#### Q: How did you handle rate limits from both APIs?
+
+**A:** "BigCommerce and Shopify have **different rate limiting strategies**, so I handled each differently:
+
+**BigCommerce (v3):**
+- Rate limit: ~150 requests per 30-second window
+- Response headers: `X-Rate-Limit-Requests-Left`, `X-Rate-Limit-Time-Reset-Ms`
+- My approach: **Debounce on 429** — read the `time-reset-ms` header, wait that exact duration, retry. No guessing.
+
+**Shopify (GraphQL):**
+- Rate limit: Cost-based — each query has a 'cost', bucket of 1000 points, refills at 50 points/second
+- Response: Returns `throttleStatus { currentlyAvailable, restoreRate }` in every response
+- My approach: **Proactive throttling** — after each mutation, check `currentlyAvailable`. If below 200 points, wait before next request. Prevents 429s entirely.
+
+```javascript
+async function shopifyMutateWithThrottle(mutation, variables) {
+  const result = await shopifyClient.mutate(mutation, { variables });
+
+  const available = result.extensions?.cost?.throttleStatus?.currentlyAvailable;
+  if (available && available < 200) {
+    // Proactively wait before next request
+    const waitTime = Math.ceil((200 - available) / 50) * 1000; // Based on restore rate
+    await delay(waitTime);
+  }
+
+  return result;
+}
+```
+
+**Combined result:** Zero failed requests due to rate limiting. Both APIs used efficiently without hitting hard limits."
+
+---
+
+#### Q: Why Azure Functions? Why not AWS Lambda?
+
+**A:** "P&G Olay was already on **Microsoft Azure ecosystem** — their infrastructure, Azure AD for auth, Azure DevOps for CI/CD. Using Azure Functions was the natural fit:
+
+- **Azure DevOps integration** — CI/CD pipeline already set up for Azure
+- **Timer triggers** — Azure Functions support cron-based triggers (useful for scheduled migration runs)
+- **Durable Functions** — For long-running orchestration across the 3 steps
+- **Blob Storage** — Intermediate data storage between steps (similar to S3)
+- **Client requirement** — P&G mandated Azure; switching to AWS was not an option
+
+**Key difference from AWS Lambda:** Azure Functions can run longer (up to 10 minutes on Consumption plan, unlimited on Premium). This was important for batch processing — some batches took 3-5 minutes to process."
+
+---
+
+#### Q: How did you ensure 100% data consistency?
+
+**A:** "Multiple layers of verification:
+
+1. **Metadata in Shopify for reference** — Every migrated product had a `migration.bigcommerce_id` metafield. This served two purposes:
+   - **Duplicate prevention** — Before inserting, check if a product with that BigCommerce ID already exists in Shopify
+   - **Traceability** — Post-migration, any Shopify product can be traced back to its BigCommerce source
+
+2. **Batch-wise tracking DB** — Complete audit trail of every batch: what was extracted, transformed, inserted, failed, retried
+
+3. **Reconciliation report** — After migration completed:
+```
+Reconciliation Check:
+├── BigCommerce total products: 5,247
+├── Shopify total products:     5,247  ✓
+├── Variants matched:           18,932 / 18,932  ✓
+├── Missing products:           0  ✓
+├── Duplicate products:         0  ✓ (metafield check)
+├── Price mismatches:           0  ✓
+└── Image count match:          ✓
+```
+
+4. **Sampled field-level comparison** — Randomly sampled 10% of products and compared every field (title, price, variants, images, metafields) between BigCommerce source and Shopify destination
+
+5. **Idempotent pipeline** — Running the entire migration again produces zero changes. Metadata check on Shopify prevents duplicates. Tracking DB prevents re-processing."
+
+---
+
+#### Q: What was the most challenging part of this project?
+
+**A:** "**Schema incompatibility between BigCommerce and Shopify.**
+
+They look similar but have deep structural differences:
+
+- **Variants:** BigCommerce allows up to 600 variants per product. Shopify limits to 100. For products exceeding this, I had to split into multiple Shopify products linked via metafields.
+- **Categories vs Collections:** BigCommerce uses nested category trees. Shopify uses flat collections. I built a mapping table that translated the category hierarchy into Shopify collection handles.
+- **Custom fields:** BigCommerce has simple key-value custom fields. Shopify uses metafields with namespaces, types, and validation. Each custom field needed type inference (is this a number? date? text?).
+- **Images:** BigCommerce returns images with their own CDN URLs. Shopify needs to download and re-host them. Some images were 404 (deleted but still in BigCommerce data) — I had to handle gracefully.
+- **Pricing:** BigCommerce stores prices as strings. Shopify expects decimals. Currency formatting differences between regions.
+
+**Each of these edge cases was discovered during transformation testing, not documented anywhere. Building the transformation layer was 60% of the total effort.**"
+
+---
+
+#### Q: What was the overall impact?
+
+**A:**
+| Metric | Impact |
+|--------|--------|
+| **Processing speed** | **50% faster** with worker thread parallelism + batch processing |
+| **API response times** | **40% reduction** through efficient pagination + connection reuse |
+| **Data consistency** | **100%** — zero duplicates, zero missing products |
+| **Rate limit failures** | **Zero** — debounce + proactive throttling |
+| **Retry efficiency** | Only failed batches retried, not entire dataset |
+| **Resume capability** | Pipeline restartable from any step without re-processing |
+| **Traceability** | Every Shopify product traceable to BigCommerce source via metafields |
+
+**Cross-questioning prep:**
+- *Why worker threads and not just Promise.all?* — Worker threads give true parallelism (multi-core CPU). `Promise.all` is concurrent but single-threaded — good for I/O-wait but schema transformation is CPU-bound work. Worker threads use separate V8 isolates for actual parallel execution.
+- *What if a product exists in Shopify but was updated in BigCommerce?* — The metafield check detects existing products. On match, we run `productUpdate` instead of `productCreate`, syncing the latest BigCommerce data to Shopify.
+- *How did you handle rollback?* — Each batch tracked independently. If we needed to undo a batch, we had the Shopify product IDs in tracking DB and could bulk-delete via GraphQL. But we never needed it — the idempotent design handled re-runs cleanly.
+- *What about network failures mid-batch?* — Azure Functions have built-in retry on failure. Combined with our batch tracking, a crashed function restarts and resumes from the last incomplete batch. No data corruption because writes are idempotent."
+
+---
+
+### PROJECT 3: EY Risk.ai – Internal Audit AI Agent Upgrade (LTIMindtree, March 2026 – Present)
+
+> EY Risk.ai is an internal audit platform powered by AI agents. My role involves upgrading agent infrastructure from GPT-4 to GPT-5.1, revamping prompt architecture, building clean/reusable React UI components, and backend refinements — all driven by user stories.
+
+---
+
+#### Q: What does EY Risk.ai do, and what's your role?
+
+**A:** "EY Risk.ai is an **internal audit tool** used by EY auditors. It uses multiple AI agents — each agent handles a specific audit domain (risk assessment, control testing, compliance checks, document analysis, etc.).
+
+My role covers **three tracks:**
+1. **AI Agent Upgrade** — Migrating each agent from GPT-4 to GPT-5.1, rewriting prompts, testing output quality
+2. **Frontend (React)** — UI changes, making components reusable, clean component design
+3. **Backend (Node.js)** — Production bug fixes, database query improvements, user story implementations
+
+```
+EY Risk.ai Architecture:
+┌────────────────────┐
+│   React Frontend   │
+│  (Clean UI / Reusable Components)
+└────────┬───────────┘
+         │
+┌────────▼───────────┐
+│  Node.js Backend   │
+│  (Express API)     │
+│  + DB Query Layer  │
+└────────┬───────────┘
+         │
+┌────────▼───────────┐
+│   AI Agent Layer   │
+│                    │
+│  Agent 1: Risk     │  ←── GPT-4 → GPT-5.1
+│  Agent 2: Controls │  ←── GPT-4 → GPT-5.1
+│  Agent 3: Compliance│ ←── GPT-4 → GPT-5.1
+│  Agent 4: Document │  ←── GPT-4 → GPT-5.1
+│  Agent N: ...      │
+└────────┬───────────┘
+         │
+┌────────▼───────────┐
+│   Data Layer       │
+│  (Files, Inputs,   │
+│   Audit Reports)   │
+└────────────────────┘
+```"
+
+---
 
 #### Q: What did upgrading from GPT-4 to GPT-5.1 involve?
-**A:** "It was not just a model swap. The entire prompt infrastructure needed revamping:
 
-1. **System prompts rewritten** — GPT-5.1 had different instruction-following behavior. Prompts that worked for GPT-4 were either too verbose or hallucinated with 5.1
-2. **Prompt chaining restructured** — Broke monolithic prompts into smaller, focused chains with intermediate validation
-3. **Token optimization** — GPT-5.1 had different context window characteristics. Optimized prompts to reduce token usage (cost optimization)
-4. **Testing framework** — Built systematic A/B testing to compare GPT-4 vs GPT-5.1 outputs on 200+ audit scenarios
-5. **Result:** 20% improvement in agent response quality measured by user satisfaction surveys and accuracy scoring"
+**A:** "It was **not just swapping the model string**. Each agent had to be upgraded individually because they had different prompt structures and behaviors.
+
+**The core problem:** Some agents had been built with **minimal instruction prompts** — they worked on GPT-4 because they only needed to process files and input prompts with basic instructions. But when switched to GPT-5.1, the same minimal prompts produced inconsistent or hallucinated results because GPT-5.1 follows instructions differently.
+
+**My approach — agent-by-agent upgrade:**
+
+```
+Agent Upgrade Pipeline (per agent):
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│ 1. AUDIT     │ ──► │ 2. REWRITE   │ ──► │ 3. TEST      │ ──► │ 4. COMPARE   │
+│              │     │              │     │              │     │              │
+│ Review       │     │ Add proper   │     │ Run against  │     │ GPT-4 vs     │
+│ existing     │     │ system       │     │ same inputs  │     │ GPT-5.1      │
+│ prompts      │     │ prompts      │     │ & files      │     │ output       │
+│              │     │              │     │              │     │ quality      │
+│ Identify     │     │ Feature-     │     │ Validate     │     │              │
+│ gaps         │     │ specific     │     │ accuracy     │     │ 20%          │
+│              │     │ instructions │     │              │     │ improvement  │
+└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+```
+
+**Step 1 — Audit existing prompts:**
+Some agents had prompts like:
+```
+// BEFORE (GPT-4 — minimal instruction, worked okay)
+{
+  role: 'user',
+  content: 'Analyze this audit report and find risks: {fileContent}'
+}
+// No system prompt. No role definition. No output format specification.
+```
+This worked on GPT-4 because it was forgiving with vague instructions. GPT-5.1 would either hallucinate risk categories or give overly generic responses.
+
+**Step 2 — Rewrite with proper system prompts:**
+```javascript
+// AFTER (GPT-5.1 — structured system prompt)
+const messages = [
+  {
+    role: 'system',
+    content: `You are an EY internal audit risk assessment agent.
+
+ROLE: Analyze audit documents and identify risks with severity ratings.
+
+RULES:
+- Only identify risks that are explicitly supported by evidence in the document
+- Do NOT infer or assume risks not mentioned
+- Classify severity as: Critical, High, Medium, Low
+- For each risk, cite the exact section/page of the source document
+- Output in the specified JSON format
+
+OUTPUT FORMAT:
+{
+  "risks": [
+    {
+      "riskTitle": "...",
+      "severity": "Critical|High|Medium|Low",
+      "description": "...",
+      "evidence": "Section X, Page Y — exact quote",
+      "recommendation": "..."
+    }
+  ],
+  "summary": "...",
+  "overallRiskRating": "..."
+}`
+  },
+  {
+    role: 'user',
+    content: `Analyze the following audit report:\n\n${fileContent}`
+  }
+];
+```
+
+**Key changes per agent:**
+- **Added `system` role prompts** — Defined the agent's persona, rules, and output format explicitly
+- **Feature-specific instructions** — Each agent got instructions tailored to its audit domain. The risk agent got risk taxonomy rules. The compliance agent got regulatory framework references. The document agent got extraction format specs.
+- **Output format enforcement** — Specified exact JSON/structured output format in system prompt. GPT-5.1 follows structured output instructions much better than GPT-4.
+- **Guard rails** — Added explicit "do NOT" instructions to prevent hallucination (e.g., 'Do NOT invent risks not found in the document')
+
+**Step 3 & 4 — Testing and comparison:**
+- Ran both GPT-4 and GPT-5.1 on the **same set of audit documents and inputs**
+- Compared response quality: accuracy, relevance, format compliance, hallucination rate
+- **Result: 20% improvement in agent response quality** — measured by auditor feedback scores and accuracy against known-good audit results"
+
+---
+
+#### Q: How did you measure that 20% improvement?
+
+**A:** "We had a **baseline comparison framework:**
+
+1. **Test dataset** — A set of audit documents with **known expected outputs** (previously reviewed by senior auditors)
+2. **Scoring criteria:**
+   - **Accuracy** — Did the agent identify the correct risks/issues? (weighted highest)
+   - **Completeness** — Did it miss any known risks?
+   - **Relevance** — Were there false positives (risks that don't exist)?
+   - **Format compliance** — Did the output match the expected JSON/structured format?
+   - **Hallucination rate** — Did it invent information not in the source document?
+
+3. **Before (GPT-4 with old prompts):** Average score ~72%
+4. **After (GPT-5.1 with new system prompts):** Average score ~86%
+5. **Delta: ~20% improvement** — mainly from reduced hallucination and better format compliance
+
+Additionally, auditor feedback on production responses showed a **noticeable improvement in response usefulness** — fewer corrections needed, fewer follow-up queries."
+
+---
+
+#### Q: What did you do on the React/Frontend side?
+
+**A:** "Two main tracks: **clean UI changes** and **making components reusable.**
+
+**1. Reusable Component Architecture (Destructuring):**
+The existing codebase had a lot of **duplicated UI patterns** — the same card layout, the same filter dropdowns, the same data tables were copy-pasted across different pages with slight variations.
+
+I **destructured** these into reusable components:
+
+```
+BEFORE (duplicated):                    AFTER (reusable):
+─────────────────                       ─────────────────
+RiskAssessment/                         shared/
+├── RiskTable.jsx (350 lines)          ├── DataTable/
+├── RiskFilters.jsx (150 lines)        │   ├── DataTable.jsx
+├── RiskCard.jsx (200 lines)           │   ├── TableFilters.jsx
+                                       │   ├── TablePagination.jsx
+ComplianceDashboard/                   │   └── TableExport.jsx
+├── ComplianceTable.jsx (380 lines)    ├── Cards/
+├── ComplianceFilters.jsx (160 lines)  │   ├── InfoCard.jsx
+├── ComplianceCard.jsx (210 lines)     │   └── StatusCard.jsx
+                                       └── Filters/
+ControlTesting/                            ├── FilterBar.jsx
+├── ControlTable.jsx (340 lines)           └── DateRangeFilter.jsx
+├── ControlFilters.jsx (140 lines)
+├── ControlCard.jsx (190 lines)        RiskAssessment/
+                                       ├── RiskPage.jsx (uses shared/DataTable)
+~70% of this code was identical!       ComplianceDashboard/
+                                       ├── CompliancePage.jsx (uses shared/DataTable)
+                                       ControlTesting/
+                                       ├── ControlPage.jsx (uses shared/DataTable)
+```
+
+**Example — Generic DataTable component:**
+```jsx
+function DataTable({ columns, data, onRowClick, sortable, filterable, exportable }) {
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [filters, setFilters] = useState({});
+
+  const processedData = useMemo(() => {
+    let result = [...data];
+    // Apply filters
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) result = result.filter(row => row[key]?.toString().includes(value));
+    });
+    // Apply sort
+    if (sortConfig.key) {
+      result.sort((a, b) => {
+        const aVal = a[sortConfig.key], bVal = b[sortConfig.key];
+        return sortConfig.direction === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+      });
+    }
+    return result;
+  }, [data, filters, sortConfig]);
+
+  return (
+    <>
+      {filterable && <TableFilters columns={columns} onFilter={setFilters} />}
+      <table>
+        <thead>
+          <tr>{columns.map(col => (
+            <th key={col.key} onClick={() => sortable && handleSort(col.key)}>
+              {col.label}
+            </th>
+          ))}</tr>
+        </thead>
+        <tbody>
+          {processedData.map(row => (
+            <tr key={row.id} onClick={() => onRowClick?.(row)}>
+              {columns.map(col => <td key={col.key}>{col.render ? col.render(row) : row[col.key]}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {exportable && <TableExport data={processedData} columns={columns} />}
+    </>
+  );
+}
+```
+
+**Result:** Reduced total component code by ~40%. Any table UI change (like adding a new column or filter) was now a **one-place change** instead of updating 5+ files.
+
+**2. Clean UI Changes:**
+- Implemented user story-driven UI changes — new dashboard layouts, improved form flows, better error states
+- Ensured consistent styling across all audit pages using the shared component library
+- Added proper loading states, empty states, and error boundaries"
+
+---
+
+#### Q: What backend work did you do?
+
+**A:** "Three areas: **production bug fixes, database query improvements, and user story implementations.**
+
+**1. Production Bug Fixes:**
+- Fixed race conditions where multiple agents could write to the same audit session simultaneously — added proper locking
+- Fixed pagination bugs where large audit result sets returned incorrect page counts
+- Fixed timeout issues with agent responses — some agents took 30+ seconds on large documents, added proper timeout handling with partial result caching
+
+**2. Database Query Improvements:**
+```sql
+-- BEFORE: Slow query fetching audit results with agent responses (full table scan)
+SELECT a.*, ar.response, ar.agent_type
+FROM audits a
+LEFT JOIN agent_responses ar ON a.id = ar.audit_id
+WHERE a.status = 'completed'
+ORDER BY a.created_at DESC;
+
+-- AFTER: Optimized with proper indexing + selective columns
+-- Added composite index: (status, created_at DESC)
+-- Added index on agent_responses: (audit_id, agent_type)
+SELECT a.id, a.title, a.status, a.created_at,
+       ar.response_summary, ar.agent_type, ar.quality_score
+FROM audits a
+LEFT JOIN agent_responses ar ON a.id = ar.audit_id
+WHERE a.status = 'completed'
+ORDER BY a.created_at DESC
+LIMIT 50 OFFSET 0;
+```
+
+**Key DB improvements:**
+- Added **composite indexes** on frequently queried columns (status + date, agent_type + audit_id)
+- Replaced `SELECT *` with **selective column queries** — the `response` column contained large JSON blobs (full agent output), loading it on list pages was wasteful. Used `response_summary` for list views, full `response` only on detail pages.
+- Applied **pagination** with LIMIT/OFFSET instead of fetching all records and paginating in application code
+- Query response time dropped from **2-3 seconds to under 200ms** on the audit dashboard
+
+**3. User Story Implementations:**
+- Built endpoints for new audit workflow features as per user stories
+- Integrated new agent outputs into existing API response structures
+- Added validation and error handling for new input formats required by GPT-5.1 agents"
+
+---
+
+#### Q: What challenges did you face during the GPT-4 to GPT-5.1 migration?
+
+**A:** "Three main challenges:
+
+**1. Prompt behavior differences:**
+GPT-4 and GPT-5.1 interpret prompts differently. A prompt that reliably produced structured JSON on GPT-4 would sometimes return markdown or free-text on GPT-5.1. I had to:
+- Add explicit `Respond ONLY in JSON format` instructions
+- Use GPT-5.1's structured output mode where available
+- Add output validation in the backend — parse the response, and if it's not valid JSON, retry with a stricter prompt
+
+**2. Agent-specific edge cases:**
+Each agent had unique quirks. The document analysis agent worked with uploaded PDFs — GPT-4 would summarize even poorly scanned documents. GPT-5.1 would refuse or give low-confidence responses. I had to add **fallback logic** — if GPT-5.1 response confidence was below threshold, re-run with a simpler extraction prompt.
+
+**3. Testing at scale:**
+We had **multiple agents**, each needing testing across different audit scenarios. There was no automated prompt testing framework — I had to build one:
+```javascript
+async function testAgent(agentType, testCases) {
+  const results = [];
+  for (const testCase of testCases) {
+    const gpt4Response = await runAgent(agentType, testCase.input, 'gpt-4');
+    const gpt51Response = await runAgent(agentType, testCase.input, 'gpt-5.1');
+
+    results.push({
+      testCase: testCase.name,
+      gpt4Score: scoreResponse(gpt4Response, testCase.expected),
+      gpt51Score: scoreResponse(gpt51Response, testCase.expected),
+      improved: gpt51Score > gpt4Score
+    });
+  }
+  return generateComparisonReport(results);
+}
+```
+This framework let us **systematically validate** each agent before switching to production."
+
+---
+
+#### Q: What was the overall impact?
+
+**A:**
+| Area | Impact |
+|------|--------|
+| **Agent response quality** | **20% improvement** — reduced hallucination, better format compliance |
+| **System prompts** | Every agent now has proper system-level instructions (persona, rules, output format) |
+| **UI components** | **~40% code reduction** — shared reusable components across all audit pages |
+| **DB query performance** | Dashboard queries from **2-3s → <200ms** with indexing + selective columns |
+| **Production stability** | Bug fixes for race conditions, timeouts, pagination |
+| **Developer experience** | Prompt testing framework for future model upgrades |
+
+**Cross-questioning prep:**
+- *Why not upgrade all agents at once?* — Each agent had different prompt structures and behaviors. A blanket model swap caused regressions in some agents. Agent-by-agent upgrade with individual testing was safer — we could roll back a single agent without affecting others.
+- *What if GPT-5.1 is worse for a specific agent?* — In 2 cases, GPT-5.1 performed worse on specific edge cases. For those, I kept GPT-4 as fallback and tuned the GPT-5.1 prompts until they matched or exceeded GPT-4 quality. Only then did we switch production.
+- *How did you handle the cost difference?* — GPT-5.1 has different pricing. The optimized system prompts were actually **more token-efficient** than the old verbose user prompts, so despite the higher per-token cost, total API spend stayed roughly flat.
+- *Wasn't destructuring components risky in production?* — I refactored incrementally — one component type at a time (tables first, then cards, then filters). Each refactor had its own PR, tested in staging before merge. No big-bang rewrite."
 
 ---
 
@@ -2250,6 +2959,151 @@ Capgemini's project scale and global exposure aligns with these goals."
 3. MITIGATE (15-30 min) → Quick fix: rollback/cache/scale/circuit-break
 4. ROOT CAUSE (post-incident) → Why did it happen? What prevent recurrence?
 ```
+
+---
+
+## 19. Capgemini – Liberty Mutual Client: Interview Intelligence
+
+> **Source:** Glassdoor, AmbitionBox, Indeed, BuiltIn, LinkedIn (April 2026 research)
+
+### About Liberty Mutual
+
+| Aspect | Details |
+|--------|---------|
+| **Type** | Fortune 100 — Global leader in property & casualty insurance |
+| **Founded** | 1912 |
+| **Employees** | 40,000+ |
+| **HQ** | Boston, MA, USA |
+| **Offices** | Boston, Indianapolis, Plano (TX), Portsmouth (NH), Seattle |
+| **Work Model** | Hybrid (flexible time on-site) |
+| **Domain** | Insurance — policy management, claims processing, underwriting, risk assessment |
+
+### Liberty Mutual Tech Stack (Confirmed from BuiltIn)
+
+Your stack is a **strong match**. Here's what Liberty Mutual uses:
+
+| Category | Technologies |
+|----------|-------------|
+| **Languages** | **JavaScript**, **TypeScript**, Java, Python, C#, C++, Golang, Kotlin, Scala, Ruby, Perl, R, Swift, SQL |
+| **Frontend** | **React**, **Redux**, D3.js, Vue.js, Backbone.js, jQuery, Ember.js, Twitter Bootstrap |
+| **Backend** | **Node.js**, **Express**, Spring, Django, Flask, Laravel, Ruby on Rails, ASP.NET, Play, Sails.js |
+| **Databases** | **MySQL**, **MongoDB**, **Redis**, PostgreSQL, Oracle, Cassandra, Snowflake, MS SQL Server, MariaDB, HBase, Neo4j, SQLite, DB2, SAP HANA, Teradata, Informix, Memcached |
+| **Testing** | **Jest**, Playwright |
+| **Frameworks** | CircleCI, Hadoop, Spark, TensorFlow, Jupyter, Caffe, Theano, Torch |
+| **Insurance Platform** | **Guidewire PolicyCenter** (major — they're actively hiring managers for this) |
+| **CI/CD** | CircleCI, Azure DevOps |
+
+**Your overlap:** Node.js, React, TypeScript, MySQL, MongoDB, Redis, Express, Jest — all directly used at Liberty Mutual.
+
+### How Capgemini Works with Liberty Mutual
+
+Based on Glassdoor reviews (April 2026):
+
+- Capgemini acts as a **staffing/services partner** — you're technically employed by Capgemini but work on Liberty Mutual projects
+- One candidate noted: *"Capgemini was only acting as an intermediary for hiring... the role itself was to work for [a US insurance company] — with no real connection to Capgemini in practice"*
+- This means: **your day-to-day tools, processes, and codebase will be Liberty Mutual's**, not Capgemini's
+- Expect to work in **US time zone overlap** (IST evenings or night shifts possible)
+- Communication will be with **Liberty Mutual's US-based engineering teams**
+
+### Interview Focus Areas (Liberty Mutual Client Projects)
+
+Based on Liberty Mutual's tech footprint and typical Capgemini client interviews:
+
+#### 1. Insurance Domain Knowledge (Be Ready to Discuss)
+
+| Concept | What to Know |
+|---------|-------------|
+| **Policy Management** | CRUD for insurance policies — creation, endorsements, renewals, cancellations |
+| **Claims Processing** | FNOL (First Notice of Loss) → investigation → settlement → payment pipeline |
+| **Underwriting** | Risk assessment, premium calculation, policy approval workflows |
+| **Guidewire** | Industry-standard insurance platform. PolicyCenter (underwriting), ClaimCenter (claims), BillingCenter (payments) |
+| **Regulatory Compliance** | State-by-state insurance regulations, data privacy (PII handling for SSN, driver's license) |
+| **Policy Lifecycle** | Quote → Bind → Issue → Endorse → Renew → Cancel |
+
+**How to frame your experience:** "While I haven't worked directly in insurance, my experience building complex workflow systems at UTEC (service request lifecycle, partner verification, multi-step approval workflows) maps directly to policy and claims workflows."
+
+#### 2. Technical Questions Likely for Liberty Mutual Projects
+
+**API Design for Insurance:**
+- "Design an API for submitting an insurance claim"
+- "How would you handle policy endorsement changes mid-term?"
+- "Design a rate calculation engine that factors in multiple risk variables"
+
+**Data Security (Critical for Insurance):**
+- "How do you handle PII (Personally Identifiable Information) in APIs?"
+  - **Your answer:** "At UTEC, I built eKYC where Aadhaar/PAN numbers were encrypted client-side (RSA), decrypted only server-side in Lambda. Never logged or stored in plain text. Same approach applies to SSN, driver's license in insurance."
+- "How do you ensure HIPAA/SOC2 compliance in your APIs?"
+  - **Your answer:** "Input sanitization framework (Joi custom types with `htmlStrip()`), JWT RS256 auth, presigned URL expiry, VAPT audit — all from my UTEC experience."
+
+**Event-Driven Architecture:**
+- "How would you design an event-driven claims processing system?"
+  - **Your answer:** "Similar to my notification engine — SNS fan-out to SQS queues. Claim submitted → SNS publishes event → SQS queues for: fraud detection, adjuster assignment, document processing, customer notification. Each consumer processes independently."
+
+**Batch Processing / ETL:**
+- "How would you migrate legacy insurance data to a new system?"
+  - **Your answer:** "My P&G Olay migration is directly applicable — 3-step ETL (extract, transform, insert) with worker thread parallelism, batch tracking, resume/retry, idempotent pipeline. Same pattern for migrating policies from legacy to Guidewire or a new system."
+
+#### 3. Scenario Questions for Insurance Context
+
+**Q: A claims API is timing out under high load after a natural disaster (hurricane). What do you do?**
+**A:**
+```
+1. TRIAGE → Identify: is it DB, downstream API, or compute?
+2. Immediate → Scale Lambda/containers horizontally, add caching for read-heavy lookups (policy details)
+3. Database → Check for N+1 queries, missing indexes on claims table, enable read replicas
+4. Queue it → For non-urgent processing (document upload, adjuster assignment), push to SQS
+5. Rate limit → Implement priority queue — emergency claims first, status inquiries second
+6. Long-term → Event-driven architecture, CQRS for read/write separation
+```
+
+**Q: How would you handle a scenario where two agents update the same insurance policy simultaneously?**
+**A:** "Optimistic locking with version column. Each policy row has a `version` field. UPDATE includes `WHERE version = ?`. If version changed (another agent updated first), reject with conflict error and ask the second agent to refresh and retry. MySQL `SELECT ... FOR UPDATE` for pessimistic locking on critical financial operations."
+
+**Q: Customer PII data is accidentally logged in CloudWatch. How do you respond?**
+**A:**
+```
+1. Immediately delete the affected CloudWatch log groups / streams
+2. Audit: which services logged PII? Which fields?
+3. Fix: Add PII masking middleware — redact SSN, DOB, account numbers before logging
+4. Implement: CloudWatch log subscription filter to detect PII patterns
+5. Report: Follow incident response protocol (mandatory in insurance — regulatory notification may be required)
+6. Prevent: Joi validation + response interceptor that strips sensitive fields before any logging
+```
+
+#### 4. Questions They May Ask About Client Work Model
+
+| Question | Suggested Answer |
+|----------|-----------------|
+| "Are you comfortable working in US shifts?" | "Yes, I'm flexible with timing. At EY Risk.ai, I collaborate with global teams and have experience working across time zones." |
+| "Have you worked with US-based clients before?" | "Yes, at LTIMindtree — P&G (US headquarters) and EY (global). I'm comfortable with cross-timezone communication, async stand-ups, and documentation-driven collaboration." |
+| "How do you handle working without direct Capgemini team support?" | "I'm used to being self-sufficient — at UTEC, I was the lead backend developer making architecture decisions independently. I can ramp up quickly on any codebase by reading existing patterns and documentation." |
+| "Are you comfortable with long-term client engagement?" | "Absolutely — I spent nearly 3 years on UTEC, building deep domain expertise. Long-term engagement lets me deliver better architecture decisions because I understand the business context." |
+
+#### 5. Liberty Mutual Specific "Questions to Ask the Interviewer"
+
+1. "Which Liberty Mutual business line would I be supporting — Personal Lines, Commercial, or Global Risk Solutions?"
+2. "Does the team work with Guidewire PolicyCenter, or is it a custom-built platform?"
+3. "What does the deployment pipeline look like — CI/CD, release cadence, environments?"
+4. "How is the India team structured relative to the US team? Is there a dedicated scrum team or distributed?"
+5. "What's the primary tech stack for the project — is it Node.js/React or Java/Spring?"
+6. "Are there opportunities to contribute to architecture decisions, or is it primarily feature development?"
+
+### Mapping Your Experience to Insurance Domain
+
+| Your UTEC Experience | Liberty Mutual Equivalent |
+|---------------------|--------------------------|
+| Service Request lifecycle (create→assign→resolve→close) | Claims lifecycle (FNOL→investigate→settle→pay) |
+| Partner verification (eKYC — Aadhaar/PAN) | Customer identity verification (SSN, driver's license) |
+| Multi-channel notification engine | Policyholder communication (claim updates, renewal reminders) |
+| SLA monitoring dashboard | Claims SLA tracking (settlement deadlines, regulatory timelines) |
+| Partner profiles + geo-based search | Agent/adjuster management + territory assignment |
+| VAPT security (input sanitization, encryption) | PII protection, SOC2 compliance, data masking |
+| Admin panel with role-based access | Underwriter/adjuster portal with permission-based views |
+| Payment integration (PayU) | Premium collection, claim payment disbursement |
+| 245+ Lambda functions on AWS | Microservices-based insurance platform on AWS/Azure |
+| OpenSearch for search/filtering | Policy search, claims search, document search |
+| Redis caching for performance | Caching policy details, rate tables, agent sessions |
+| Stored procedures for business logic | Premium calculation rules, endorsement processing logic |
 
 ---
 
