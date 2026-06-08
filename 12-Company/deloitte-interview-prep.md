@@ -20,14 +20,16 @@
 9. [Round 1 – Technical Round: AWS & Cloud](#9-round-1--technical-round-aws--cloud)
 10. [Round 1 – Technical Round: Databases (MySQL, MongoDB, Redis)](#10-round-1--technical-round-databases-mysql-mongodb-redis)
 11. [Round 1 – Technical Round: System Design](#11-round-1--technical-round-system-design)
-12. [Round 1 – Technical Round: DSA & Coding](#12-round-1--technical-round-dsa--coding)
-13. [Round 2 – Techno-Managerial Round](#13-round-2--techno-managerial-round)
-14. [Round 3 – HR Round](#14-round-3--hr-round)
-15. [Questions to Ask the Interviewer](#15-questions-to-ask-the-interviewer)
-16. [Last-Day Revision Plan](#16-last-day-revision-plan)
-17. [Quick Revision Cheatsheet](#17-quick-revision-cheatsheet)
-18. [Salary Negotiation Strategy](#18-salary-negotiation-strategy)
-19. [How to Crack the Deloitte Interview — Master Strategy](#19-how-to-crack-the-deloitte-interview--master-strategy)
+12. [Round 1 – Gen AI / LLM Engineering (HIGH PRIORITY)](#12-round-1--gen-ai--llm-engineering-high-priority)
+13. [Round 1 – Technical Round: DSA & Coding](#13-round-1--technical-round-dsa--coding)
+14. [Round 2 – Techno-Managerial Round](#14-round-2--techno-managerial-round)
+15. [Round 3 – HR Round](#15-round-3--hr-round)
+16. [Questions to Ask the Interviewer](#16-questions-to-ask-the-interviewer)
+17. [Last-Day Revision Plan](#17-last-day-revision-plan)
+18. [Quick Revision Cheatsheet](#18-quick-revision-cheatsheet)
+19. [Salary Negotiation Strategy](#19-salary-negotiation-strategy)
+20. [How to Crack the Deloitte Interview — Master Strategy](#20-how-to-crack-the-deloitte-interview--master-strategy)
+21. [Last-Night Rapid-Fire Self-Test](#21-last-night-rapid-fire-self-test)
 
 ---
 
@@ -194,7 +196,7 @@ HR Scheduling Call → Technical Round → Techno-Managerial Round → HR Round
 
 ### 📋 Night-Before Checklist
 - [ ] Re-read your resume — know every bullet point cold
-- [ ] Revise Section 17 (Quick Cheatsheet) in this file
+- [ ] Revise Section 18 (Quick Cheatsheet) in this file
 - [ ] Prepare 3 STAR stories for the Techno-Managerial round
 - [ ] Review system design concepts (API gateway, microservices, caching)
 - [ ] Sleep by 11 PM — a rested mind performs better
@@ -542,6 +544,29 @@ WHERE rnk = 2;
 > In Vkonnect: Cache frequently accessed doctor availability data with 60-second TTL. On appointment update, invalidate relevant cache keys.  
 > Pattern: Cache-aside (read: check cache → miss → DB → write cache; write: update DB → delete cache key)
 
+### OpenSearch
+
+**Q11. What is OpenSearch?**
+> OpenSearch is an open-source fork of Elasticsearch 7.10, maintained by AWS after the Elastic license change. It's a distributed search and analytics engine — same Lucene-based core. AWS provides it as a managed service (Amazon OpenSearch Service). On EY Risk.ai we used it as a single store for full-text, vector, and log analytics.
+
+**Q12. Full-text vs vector search — when do you use each?**
+> **Full-text (BM25):** keyword matching. Great when the user query has specific terms — regulation codes, ticker symbols, document IDs. Fast and explainable.
+> **Vector (k-NN):** semantic matching via embeddings. Great for natural-language questions where wording differs from the source ("Are short positions allowed?" vs document text "no naked shorts").
+> **Hybrid:** combine BM25 score + k-NN score (e.g., reciprocal rank fusion). In our RAG setup on EY Risk.ai, hybrid retrieval beat either approach alone by ~15% on recall.
+
+**Q13. When would you choose OpenSearch over MySQL or MongoDB?**
+> - **MySQL** — relational integrity, transactions, exact-match lookups. Bad at fuzzy/relevance ranking at scale.
+> - **MongoDB** — flexible document schema, fine for filtered queries. Not designed for relevance scoring or vector search.
+> - **OpenSearch** — relevance-ranked full-text, k-NN vector search, log/event analytics with aggregations. Use it when the access pattern is "find the most relevant matches" rather than "fetch by ID".
+> On EY Risk.ai: MySQL stored structured agent metadata (run history, user records); OpenSearch stored embedded document chunks for retrieval + every agent trace log for ops dashboards.
+
+**Q14. Basic OpenSearch concepts — index, mapping, shards?**
+> - **Index** — logical collection of documents (like a table)
+> - **Mapping** — schema definition: field types, analyzers, k-NN dimensions. You define `knn_vector` field type with dimension and similarity metric (cosine/L2)
+> - **Shards** — index is split into shards for horizontal scale; each shard is a self-contained Lucene index
+> - **Replicas** — copies of shards for HA + read throughput
+> Tie-in to Gen AI: our risk-document index had a `text` field (BM25), an `embedding` field (1536-dim k-NN), and metadata (doc_id, section, page). One query hit both signals → hybrid retrieval feeds the RAG prompt (see Section 12).
+
 ---
 
 ## 11. Round 1 – Technical Round: System Design
@@ -629,7 +654,125 @@ WHERE rnk = 2;
 
 ---
 
-## 12. Round 1 – Technical Round: DSA & Coding
+## 12. Round 1 – Gen AI / LLM Engineering (HIGH PRIORITY)
+
+> ⭐ **Why this section matters most for you:** Deloitte USI is hiring heavily for **Gen AI full-stack Node.js** roles. Your EY Risk.ai project (GPT-4 → GPT-5.1 agents) is your single biggest differentiator AND your biggest exposure — if you can't speak fluently about RAG, embeddings, hallucinations, and agent orchestration, an LSA-grade interviewer will smell it instantly. Lead with EY Risk.ai when any AI question opens.
+
+### RAG Architecture End-to-End
+
+**Q1. Walk me through a RAG pipeline.**
+> RAG = Retrieval Augmented Generation. End-to-end flow:
+> 1. **Ingestion** — raw documents (PDFs, policies, risk reports) collected to S3/Blob
+> 2. **Chunking** — split into 500–1000 token chunks with 10–15% overlap so context isn't lost at boundaries
+> 3. **Embedding** — each chunk converted to a vector (1536-dim with OpenAI `text-embedding-3-small`) via the embeddings API
+> 4. **Vector store** — chunks + vectors persisted in OpenSearch (k-NN index) or Pinecone with metadata (doc_id, page, section)
+> 5. **Retrieval** — at query time, embed the user question → k-NN search for top-K (usually 8–10) similar chunks
+> 6. **Re-ranking** — re-score the top-K with a cross-encoder or LLM-as-judge to push the most relevant 3–5 chunks to the top
+> 7. **Generation** — stuff the top chunks into the LLM prompt with strict instructions to answer **only** from context + cite sources
+> 8. **Response** — stream tokens back to the client, return citations alongside the answer
+>
+> On EY Risk.ai, this is exactly how we let the agent answer risk-policy questions without hallucinating — every answer was grounded in the retrieved policy chunk and cited the source document.
+
+**Q2. Where does OpenSearch fit in a RAG stack?**
+> OpenSearch can play **three roles in one store**, which is why we picked it for EY Risk.ai:
+> 1. **Vector store** — k-NN plugin for ANN search on embeddings (HNSW algorithm)
+> 2. **Lexical/BM25 search** — keyword search for exact terms (regulation codes, ticker symbols)
+> 3. **Hybrid retrieval** — combine k-NN + BM25 scores; hybrid usually beats either alone by 10–20% on recall
+>
+> One cluster, one index pattern → simpler ops than managing Pinecone + Elasticsearch separately. Also already in our AWS footprint, so no new vendor.
+
+### Embeddings
+
+**Q3. What is an embedding, in plain terms?**
+> A dense vector (array of floats) that captures the **semantic meaning** of a piece of text. Sentences with similar meanings end up close together in vector space — that's what lets us retrieve relevant context by meaning, not just keywords.
+
+**Q4. How do you measure similarity between embeddings?**
+> **Cosine similarity** — measures the angle between two vectors, range [-1, 1]. Closer to 1 = more similar. It's the default for normalized embeddings because magnitude doesn't matter — only direction.
+> Alternatives: Euclidean distance, dot product. For OpenAI embeddings (already L2-normalized), cosine and dot product give the same ranking.
+
+**Q5. Dimension and cost trade-offs?**
+> Higher dimensions = richer semantic signal but more storage + slower ANN search.
+> - `text-embedding-3-small` (1536-dim) → cheap, fast, good for most use cases
+> - `text-embedding-3-large` (3072-dim) → more accurate, ~6.5x more expensive
+> On EY Risk.ai we used `3-small` because cost-per-million-tokens mattered at our document volumes, and retrieval quality was already strong with hybrid search.
+
+### Hallucination Reduction
+
+**Q6. How did you reduce hallucinations on EY Risk.ai?**
+> Five concrete techniques we applied:
+> 1. **Grounding via RAG** — the prompt always includes "Answer ONLY from the provided context. If the answer is not in context, say 'I don't have that information.'"
+> 2. **System prompt design** — strict role definition + refusal guidance ("Do not speculate on financial figures")
+> 3. **Citations** — every answer must cite the retrieved chunk ID; if the model can't cite, it shouldn't answer
+> 4. **Temperature 0.1–0.2** for factual tasks (only crank it up for creative summaries)
+> 5. **Guardrails** — post-generation validator that re-checks the answer against retrieved chunks before returning to the client; mismatches trigger a regenerate
+>
+> After we layered these in, hallucinations on risk-policy queries dropped sharply — that's a big part of the 20% accuracy gain on the GPT-5.1 migration.
+
+### Token & Cost Optimization
+
+**Q7. How did you cut cost 35% on EY Risk.ai?**
+> Multiple levers:
+> 1. **Model routing** — moved 80% of traffic from GPT-5.1 full to **GPT-5.1-mini** for simple classification + extraction tasks; only complex reasoning hit the full model
+> 2. **Prompt compression** — removed verbose few-shot examples once the model proved capable of zero-shot; cut system prompt by ~40%
+> 3. **Response caching in Redis** — cache by `hash(prompt + context)` with TTL; identical questions returned in <50ms with zero LLM cost
+> 4. **Chunk pruning** — re-ranker discards chunks below a confidence threshold before they hit the context window
+> 5. **Streaming + early termination** — for tool-calling agents, stop the stream the moment we get the JSON we need
+>
+> Combined, this cut per-query cost by ~35% with no measurable quality loss.
+
+### Prompt Infrastructure Redesign (GPT-4 → GPT-5.1)
+
+**Q8. What broke when you migrated from GPT-4 to GPT-5.1?**
+> Three big things:
+> 1. **Token limits / context window changed** — GPT-5.1 has a much larger context, so our old aggressive chunking (small chunks, many retrieved) was wasteful; we re-tuned chunk size up and reduced top-K
+> 2. **Tool-calling API behavior shifted** — argument schema validation became stricter; some loosely-typed JSON our agents emitted started failing → we tightened the JSON Schema definitions and added a retry-on-validation-error wrapper
+> 3. **System prompt interpretation changed** — GPT-5.1 weights instructions differently; some refusal phrasing that worked in GPT-4 became too aggressive in 5.1. We rewrote the system prompts with a regression test suite (golden Q&A pairs) to catch behavior drift before rollout
+>
+> The migration touched ~70% of the prompt layer. We shipped behind a feature flag and A/B tested before full cutover.
+
+### Agent Orchestration
+
+**Q9. How does an agent differ from a single LLM call?**
+> A single LLM call = one prompt in, one response out.
+> An **agent** = LLM + tools + memory + control loop. The model decides which tool to call (search, DB query, API), executes it, observes the result, and decides the next step until the task is done. On EY Risk.ai, our agents had tools for: vector search, structured DB lookup, regulation API, and a calculator for risk scoring.
+
+**Q10. How do you handle agent reliability — retries, evals?**
+> 1. **Tool retries with exponential backoff** — transient API failures retried up to 3 times
+> 2. **Step caps** — max 8 agent steps per query to prevent runaway loops
+> 3. **Output validation** — every tool response validated against expected schema before being fed back to the model
+> 4. **Eval pipeline** — a golden dataset of ~200 Q&A pairs; CI runs them on every prompt change and tracks accuracy, latency, token count. This is how we **measured the 20% accuracy gain** — apples-to-apples on the same eval set
+> 5. **Production monitoring** — log every agent trace (prompt, tools called, final answer) to OpenSearch; dashboard tracks step count, latency p95, hallucination rate flagged by human reviewers
+
+### Streaming & Rate Limits
+
+**Q11. How do you stream LLM responses to the client?**
+> Server-Sent Events (SSE) over HTTP, or WebSocket for bidirectional. Node.js:
+> - Open response stream → set `Content-Type: text/event-stream`
+> - OpenAI SDK in streaming mode → `for await (const chunk of stream)` → forward each token
+> - On client, `EventSource` reads tokens and appends to UI as they arrive
+> Result: time-to-first-token drops from ~3s to ~300ms — massive UX win.
+
+**Q12. How do you handle OpenAI rate limits / 429s?**
+> 1. **Exponential backoff with jitter** — wait 1s, 2s, 4s with ±30% jitter to avoid thundering herd
+> 2. **Token bucket on our side** — track tokens/min in Redis, throttle preemptively before hitting OpenAI limits
+> 3. **Queue + worker pool** — non-interactive jobs (batch document processing) go through SQS so they don't compete with live user traffic
+> 4. **Per-tenant quotas** — one client can't starve others
+
+### Consulting Framing for Gen AI
+
+**Q13. How would you pitch a Gen AI solution to a US client?**
+> Lead with business value, not tech:
+> 1. **The "before"** — "Your compliance team currently spends 15 hours/week manually searching policy documents"
+> 2. **The "after"** — "A grounded RAG-based assistant cuts that to under 1 hour with cited answers — and the citations satisfy your audit trail requirement"
+> 3. **The "how"** — High-level architecture sketch, model-agnostic so you're not locked to one vendor
+> 4. **The "risks + mitigations"** — Hallucination (grounding + citations), data privacy (private deployment, no training on your data), cost (caching + model routing keeps it predictable)
+> 5. **The "proof"** — On EY Risk.ai we delivered 20% accuracy gain + 35% cost reduction post-migration — same playbook applies here
+>
+> That framing — business outcome first, tech second, risks named upfront — is exactly how a Deloitte consultant pitches AI to a Fortune 500 buyer.
+
+---
+
+## 13. Round 1 – Technical Round: DSA & Coding
 
 > **LSA calibration:** None of the 9 AmbitionBox LSA interview reports mention LeetCode-style DSA. LSA interviews focus on **depth of your past work** and **practical problem-solving** — not competitive programming. The questions below are a safety net, but do NOT spend significant prep time here. Prioritise Section 11 (System Design) and Sections 6–10 (your actual stack) instead.
 >
@@ -720,7 +863,7 @@ function deepClone(obj) {
 
 ---
 
-## 13. Round 2 – Techno-Managerial Round
+## 14. Round 2 – Techno-Managerial Round
 
 > **Context:** AmbitionBox community thread (13 upvotes, 11 comments): "Is it more focused on tech or management?" — community consensus: **it's a blend**. Expect architecture discussions + behavioral scenarios. The interviewer is typically a Manager or Principal with their own engineering background.
 
@@ -792,6 +935,34 @@ function deepClone(obj) {
 **Q8. "Why should we hire you over other candidates?"**
 > "I bring a rare combination: deep hands-on engineering in Node.js/React/AWS plus real experience delivering for large enterprises like P&G, EY, and UltraTech Cement. I don't just write code — I think about business impact, scalability, and ownership. I've built systems from scratch, migrated legacy platforms, and integrated AI — all in production environments. At Deloitte, that translates directly to value for US clients from day one."
 
+### Pre-Written STAR Stories (memorize these)
+
+> Four stories, four archetypes, each ending in a hard number. Practice each out loud — 60 seconds, no notes.
+
+#### Story 1 — Conflict / Technical Disagreement
+> **Situation:** On the P&G Olay BigCommerce → Shopify migration, the client tech lead wanted a single big-bang cutover weekend — push all 50,000 SKUs and historical orders in one shot to minimize dual-running cost.
+> **Task:** I was the backend lead on our side. I believed a big-bang carried unacceptable risk — a mid-batch failure would leave the storefront in an inconsistent state during peak retail hours.
+> **Action:** I didn't push back in the meeting and lose the room. Instead, I built a one-page risk matrix overnight — failure modes for big-bang vs phased migration, with concrete cost estimates (revenue per hour of downtime, rollback complexity). I proposed a phased plan: catalog first, then customers, then orders, with reconciliation gates between phases and a dual-write window. I walked the client lead through it 1:1 before the next standup so they could own the decision in front of their leadership.
+> **Result:** Client switched to the phased plan. We hit go-live 2 weeks ahead of schedule with zero rollback events, and the reconciliation script I built caught **340 mismatched records** pre-launch — saved a $50K+ refund scenario.
+
+#### Story 2 — Failure / Mistake & What I Learned
+> **Situation:** Early in the P&G migration, in the first batch of order history sync, I shipped a worker that didn't have idempotency keys on the Shopify upsert. The Azure Function retried on a transient network blip mid-batch.
+> **Task:** Within an hour, monitoring flagged that ~1,200 historical orders had been **double-written** to Shopify, inflating customer order counts.
+> **Action:** I owned it immediately on the client channel — didn't hide it, didn't wait for QA to find it. I (a) paused the worker, (b) wrote a reconciliation script that diffed source vs target by external_id and built a delete list, (c) cleaned the duplicates inside a 4-hour window, and (d) rewrote the worker to upsert by stable `external_id` with idempotency tokens so the same retry would now be a no-op.
+> **Result:** Zero customer-visible impact, fixed within one business day. We added idempotency as a hard checklist item for every subsequent batch worker. The reconciliation script became part of the migration playbook the client now reuses. **Lesson:** in distributed batch systems, "retry-safe by design" is not optional — it's a Day-1 requirement.
+
+#### Story 3 — Leading Without Authority
+> **Situation:** On EY Risk.ai, OpenAI announced GPT-5.1. I was a senior IC, not a tech lead. The team's instinct was "GPT-4 works, don't break it."
+> **Task:** I believed migrating would unlock real accuracy gains for our agent quality, but I had no formal authority to mandate the work or commit team capacity.
+> **Action:** I ran a 3-day spike on my own time — wrote a side-by-side eval on 50 golden risk-policy questions comparing GPT-4 vs GPT-5.1-mini, with token cost and latency captured. I packaged it as a one-pager: accuracy delta, cost delta, migration risk, rollback plan. I shared it with my tech lead and the client architect in the same thread so it was visible, not whispered. I also offered to own the prompt-infrastructure rebuild and mentor two juniors through the chunking-logic changes.
+> **Result:** Migration approved within a week. We shipped behind a feature flag, A/B tested, then cut over. Final outcome: **20% accuracy gain and 35% cost reduction** per query. Both juniors I mentored ran their own prompt updates by the end of the migration.
+
+#### Story 4 — Ambiguity / Shifting Requirements Under Deadline
+> **Situation:** Mid-way through the EY Risk.ai GPT-5.1 migration, the client compliance team came in with a new requirement: every agent answer had to include **citations to the source document** for audit purposes. We had 3 weeks left before the planned cutover.
+> **Task:** Decide whether to push the date, descope, or absorb the change. The prompt infrastructure rebuild was already in flight.
+> **Action:** I broke the requirement down with the compliance stakeholder in a 30-minute call — "must-have" vs "nice-to-have". The must-have was inline citations with doc ID + page; the nice-to-have (clickable links to the document viewer) could ship in a fast-follow. I re-sequenced the sprint: integrate citations into the same retrieval-layer refactor (since I was already touching the chunk metadata), defer the viewer UI to the next sprint, and add citations to the eval suite so we'd measure regression. I communicated the trade-off upfront — "we'll hit the original date if you accept the viewer in v2" — so there were no surprises.
+> **Result:** Shipped citations on time, cutover date held, compliance signed off. The deferred viewer landed two weeks later as planned. **Zero scope creep, zero date slip.** This became my default play for late-arriving requirements: split must-have from nice-to-have on the spot, sequence the work, get explicit buy-in on the trade-off.
+
 ### Technical Depth Questions in Managerial Round
 
 **Q9. "What is your approach to API design?"**
@@ -815,7 +986,7 @@ function deepClone(obj) {
 
 ---
 
-## 14. Round 3 – HR Round
+## 15. Round 3 – HR Round
 
 ### Why Deloitte?
 
@@ -862,7 +1033,7 @@ function deepClone(obj) {
 
 - Only share current CTC if directly asked — do not volunteer it
 - If pressed: "My current CTC is [X]. I'm looking at this as both a career step into consulting and a compensation step-up."
-- See **Section 18** for the full salary negotiation strategy with scripts for every scenario
+- See **Section 19** for the full salary negotiation strategy with scripts for every scenario
 
 ### Notice Period
 
@@ -880,9 +1051,33 @@ function deepClone(obj) {
 | Team fit | "I work well in structured, quality-focused teams — Deloitte's culture fits" |
 | Hybrid / WFO | "Comfortable with client-mandated hybrid working arrangements" |
 
+### Trap Questions — 30-Second Answers
+
+> Deliver each calmly, no defensiveness, no over-explaining. If they push, repeat the same point with one more concrete detail — never contradict.
+
+**Q. "Why are you switching / leaving LTIMindtree so soon?"**
+> "I've had a strong run at LTIMindtree — P&G Olay and EY Risk.ai have both been complex, high-ownership projects. The move is about the **next layer of growth**: I want to operate inside a Big Four consulting model where the technical work is tied directly to a client-facing advisory role. That's a specific career arc Deloitte offers that's harder to build inside a pure delivery firm."
+
+**Q. "You've changed companies a few times — why?"**
+> "Each move has been intentional and forward — Iprogrammer gave me my foundation on UTEC for UltraTech Cement, Reapmind let me own Vkonnect end-to-end at 10K-user scale, and LTIMindtree got me into enterprise delivery for P&G and EY. Every transition has added a capability I couldn't get by staying — scale, ownership, or client exposure. Deloitte is the natural next step into consulting."
+
+**Q. "Why a consulting/services firm over a product company?"**
+> "Product companies optimize for one product; consulting exposes me to many client problems across industries. I learn faster, build broader systems thinking, and the work directly impacts a business outcome I can see. Honestly, the variety and client interaction is the part of my LTIMindtree work I enjoy most — Deloitte amplifies that."
+
+**Q. "Why Deloitte specifically?"**
+> "Four reasons. **One** — the USI delivery model: deep US client exposure while being based in India, on Fortune 500 projects. **Two** — Big Four stability and brand; that matters for long-term career compounding. **Three** — a clear consulting career path: Consultant → Senior Consultant → Manager, not a vague 'senior engineer' ceiling. **Four** — Deloitte's AI and cloud modernization practice is genuinely well-funded; the Greenhouse learning platform and initiatives like WorldClimate show this is a firm that invests in its people, not just billable hours. That combination is hard to find."
+
+**Q. "What's your expected CTC?"**
+> "Based on my 5+ years across P&G, EY, and UltraTech delivery, my specialization in Node.js/AWS/React, plus the Gen AI work on EY Risk.ai, I'm targeting **₹24–26 LPA** — which aligns with the Lead Solution Advisor band at Deloitte based on current market data. I'm open to discussing the full package including variable and any joining support."
+>
+> *If pushed early (before they've shared the role band):* "I'd rather understand the role scope first — happy to share my number, but I want to make sure my expectations match the level you're hiring for. Could you share the band you're considering?"
+
+**Q. "What is your biggest weakness?"**
+> "Early in my career I'd jump to coding before fully scoping a problem — I'd build a clean solution to the wrong question. I've actively mitigated it by forcing a 'requirements checklist' on myself before any sprint: write down the business outcome, the assumptions, and the success metric, then validate with the stakeholder. On EY Risk.ai it caught a misread requirement that would have cost us two days of rework. It's a real weakness — but one I now have a system around."
+
 ---
 
-## 15. Questions to Ask the Interviewer
+## 16. Questions to Ask the Interviewer
 
 > Asking smart questions shows genuine interest and preparation. Ask 2-3 from this list.
 
@@ -903,17 +1098,17 @@ function deepClone(obj) {
 
 ---
 
-## 16. Last-Day Revision Plan
+## 17. Last-Day Revision Plan
 
 ### Night Before (3 Hours Max)
 
 | Time | Focus |
 |------|-------|
 | First 45 min | Re-read Sections 4 and 5 — Self-intro and project defense |
-| Next 45 min | Section 17 Quick Cheatsheet — JS, Node, React key concepts |
-| Next 30 min | Section 13 STAR stories — practice the 3 behavioral answers out loud |
-| Next 30 min | System design: review microservices architecture and JWT flow |
-| Final 30 min | Section 14 HR answers — practice "Why Deloitte?" and salary answer |
+| Next 45 min | Section 18 Quick Cheatsheet — JS, Node, React key concepts |
+| Next 30 min | Section 14 STAR stories — practice the 4 behavioral answers out loud |
+| Next 30 min | Section 12 Gen AI / RAG — your biggest differentiator on EY Risk.ai |
+| Final 30 min | Section 15 HR answers — practice "Why Deloitte?", trap questions, and salary answer |
 
 ### Morning Of
 - Eat a good breakfast
@@ -928,7 +1123,7 @@ function deepClone(obj) {
 
 ---
 
-## 17. Quick Revision Cheatsheet
+## 18. Quick Revision Cheatsheet
 
 ### JavaScript Core
 | Concept | One-Liner |
@@ -1008,7 +1203,7 @@ function deepClone(obj) {
 
 ---
 
-## 18. Salary Negotiation Strategy
+## 19. Salary Negotiation Strategy
 
 > **Goal:** Walk away with the highest sustainable offer. This section has the real data, scripts, and tactics.
 
@@ -1092,7 +1287,7 @@ function deepClone(obj) {
 
 ---
 
-## 19. How to Crack the Deloitte Interview — Master Strategy
+## 20. How to Crack the Deloitte Interview — Master Strategy
 
 > Based on analysis of 86 SSE Glassdoor reviews (April 2026) + AmbitionBox SSE data + community intelligence. Only 51% of SSE candidates report a positive experience — **structured preparation is what separates hired from rejected.**
 
@@ -1181,7 +1376,7 @@ Weave these into answers across all rounds:
 #### Round 3 — HR (30-45 min)
 - Largely a formality after passing Round 2 — but salary negotiation happens here
 - "Why Deloitte?" must be specific: mention USI delivery model, Big Four stability, consulting career path, AI/cloud practice
-- Use salary negotiation scripts from Section 18
+- Use salary negotiation scripts from Section 19
 - Confirm: joining timeline, hybrid schedule, onboarding process
 
 ### The Single Mindset Shift That Wins at Deloitte
@@ -1194,4 +1389,83 @@ Weave these into answers across all rounds:
 
 ---
 
-*Last updated: April 2026 | Based on Glassdoor (86 SSE interviews, 32,681 total), AmbitionBox (SSE salary 2,000+ reports, interview data), and candidate-reported experiences (Glassdoor April 2026)*
+## 21. Last-Night Rapid-Fire Self-Test
+
+> 15 minutes. Read each question aloud, answer in ≤30 seconds in your head, then expand the answer to check. If you hesitate on more than 5 — re-read the relevant section before bed.
+
+### The 30 Questions
+
+1. Walk through the JavaScript event loop: call stack, microtasks, macrotasks — what runs first?
+2. Node.js is single-threaded — so how does it handle 10K concurrent connections?
+3. `process.nextTick` vs `setImmediate` — which fires first and why?
+4. Closure — give a real example from one of your projects.
+5. `Promise.all` vs `Promise.allSettled` — when do you pick each?
+6. TypeScript: `interface` vs `type` — which for domain models, which for utilities?
+7. `unknown` vs `any` — why is `unknown` safer?
+8. JWT auth flow — credentials → token → request → verify. Where do refresh tokens fit?
+9. How do you blacklist a JWT on logout?
+10. Redis cache-aside — read path and write path, in one sentence each.
+11. SQL: write the second-highest salary query (no peeking).
+12. N+1 query problem — what is it, how do you fix it?
+13. Indexes: why do they speed up reads but slow writes?
+14. MongoDB aggregation: `$match → $group → $sort → $project` — what does each stage do?
+15. OpenSearch: full-text vs vector vs hybrid — pick one for "find similar risk-policy documents". Why?
+16. RAG pipeline end-to-end: name the 8 stages in order.
+17. What is an embedding, and why is cosine similarity the standard metric?
+18. Three concrete techniques you used on EY Risk.ai to reduce hallucinations.
+19. How did you cut GPT cost 35% on EY Risk.ai? Name at least three levers.
+20. What broke when you migrated GPT-4 → GPT-5.1 and how did you fix it?
+21. Agent vs single LLM call — what's the difference?
+22. Streaming LLM responses to a Node.js client — SSE or WebSocket, and why?
+23. Microservices migration — name the pattern (one word) and the first step.
+24. Production API throwing 500s — what are your first three actions?
+25. EC2 vs Lambda — when do you pick each? Give one concrete example from your projects.
+26. SQS vs SNS — one is pull, one is push. Which is which?
+27. STAR — conflict story. 60 seconds. End with a number.
+28. STAR — failure story. 60 seconds. End with the lesson.
+29. "Why Deloitte specifically?" — four reasons in 30 seconds.
+30. "What's your expected CTC?" — your exact one-line anchor.
+
+<details>
+<summary><b>Answers / Section Pointers</b> (open only after attempting)</summary>
+
+| # | Topic | Where to verify |
+|---|-------|-----------------|
+| 1 | Event loop | Section 6, Q2 + Section 17 (Cheatsheet) |
+| 2 | Node concurrency | Section 7, Q1 |
+| 3 | `nextTick` vs `setImmediate` | Section 7, Q2 |
+| 4 | Closure | Section 6, Q1 |
+| 5 | `Promise.all` vs `allSettled` | Section 6, Q5 |
+| 6 | `interface` vs `type` | Section 6, Q9 |
+| 7 | `unknown` vs `any` | Section 6, Q11 |
+| 8 | JWT flow | Section 7, Q5 |
+| 9 | JWT blacklist on logout | Section 20, Principle 2 (deeper JWT example) |
+| 10 | Redis cache-aside | Section 10, Q10 |
+| 11 | Second-highest salary | Section 10, Q5 |
+| 12 | N+1 problem | Section 10, Q4 |
+| 13 | Indexes trade-off | Section 10, Q2 |
+| 14 | MongoDB aggregation | Section 10, Q7 |
+| 15 | OpenSearch full-text vs vector vs hybrid | Section 10, Q12–Q13 |
+| 16 | RAG pipeline (8 stages) | Section 12, Q1 |
+| 17 | Embeddings + cosine | Section 12, Q3–Q4 |
+| 18 | Hallucination reduction | Section 12, Q6 |
+| 19 | 35% cost cut | Section 12, Q7 |
+| 20 | GPT-4 → 5.1 migration | Section 12, Q8 |
+| 21 | Agent vs single call | Section 12, Q9 |
+| 22 | Streaming responses | Section 12, Q11 |
+| 23 | Microservices migration (Strangler Fig) | Section 14, Q1 |
+| 24 | Production 500 errors | Section 14, Q2 |
+| 25 | EC2 vs Lambda | Section 9, Q2 |
+| 26 | SQS vs SNS | Section 9, Q5 |
+| 27 | Conflict STAR | Section 14, Story 1 |
+| 28 | Failure STAR | Section 14, Story 2 |
+| 29 | Why Deloitte | Section 15, Trap Questions |
+| 30 | CTC anchor | Section 15, Trap Questions + Section 19 |
+
+</details>
+
+> **Final reminder:** If you can answer 25/30 cleanly, you are ready. Go to sleep by 11 PM. The remaining 5 are not worth losing rest over — clarity of thought tomorrow beats one more fact tonight.
+
+---
+
+*Last updated: May 2026 (pre-interview, Sections 12, 14 STAR stories, 15 Trap Questions, 21 added) | Based on Glassdoor (86 SSE interviews, 32,681 total), AmbitionBox (SSE salary 2,000+ reports, LSA 1,200+ reports, interview data), and candidate-reported experiences*

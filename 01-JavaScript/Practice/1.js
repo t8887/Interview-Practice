@@ -381,23 +381,23 @@
 
 
 
-// let arr = [1,2,[3,4,[5]]];  
+let arr = [1,2,[3,4,[5]]];  
 
-// const flatArray = (rajiv) => {
-//     let newArr = [];
+const flatArray = (rajiv) => {
+    let newArr = [];
 
-//     for(let i=0;i<rajiv.length;i++){
-//         if(Array.isArray(rajiv[i])){
-//             let value = flatArray(rajiv[i]);
-//             newArr.push(...value);
-//         }else{
-//             newArr.push(rajiv[i]);
-//         }
-//     }
-//     return newArr;
+    for(let i=0;i<rajiv.length;i++){
+        if(Array.isArray(rajiv[i])){
+            let value = flatArray(rajiv[i]);
+            newArr.push(...value);
+        }else{
+            newArr.push(rajiv[i]);
+        }
+    }
+    return newArr;
 
-// }
-// console.log(flatArray(arr));
+}
+console.log(flatArray(arr));
 
 
 

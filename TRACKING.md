@@ -21,9 +21,9 @@
 | 1 | Rewrite resume headline & summary | ✅ Completed | |
 | 2 | Prepare layoff/Gap answer  | ✅ Completed | |
 | 3 | List top 2 strongest projects | ✅ Completed | |
-| 4 | JS: Closures, Promises & Polyfills | ⬜ Not Started | see 11-JS-Puzzles/01 |
-| 5 | JS: Advanced / Senior Level Patterns | ⬜ Not Started | see 11-JS-Puzzles/02 |
-| 6 | JS: Pattern-Based Must-Know | ⬜ Not Started | see 11-JS-Puzzles/03 |
+| 4 | JS: Closures, Promises & Polyfills | ✅ Completed | see 11-JS-Puzzles/01 |
+| 5 | JS: Advanced / Senior Level Patterns | ✅ Completed | see 11-JS-Puzzles/02 |
+| 6 | JS: Pattern-Based Must-Know | ✅ Completed | see 11-JS-Puzzles/03 |
 
 ### Day 4–6: TypeScript
 | # | Task | Status | Notes |
@@ -39,18 +39,18 @@
 |---|------|--------|-------|
 | 12 | Node.js: Event loop deep dive | ✅ Completed | |
 | 13 | Node.js: Async patterns | ✅ Completed | |
-| 14 | Node.js: Streams & Workers | ⬜ Not Started | |
-| 15 | Node.js: Error handling patterns | ⬜ Not Started | |
-| 16 | Node.js: Express production design | ⬜ Not Started | |
+| 14 | Node.js: Streams & Workers | ✅ Completed | |
+| 15 | Node.js: Error handling patterns | ✅ Completed | |
+| 16 | Node.js: Express production design | ✅ Completed | |
 
 ### Day 10–12: React
 | # | Task | Status | Notes |
 |---|------|--------|-------|
-| 17 | React: Hooks deep dive | ⬜ Not Started | |
-| 18 | React: Rendering & Reconciliation | ⬜ Not Started | |
-| 19 | React: Memoization & performance | ⬜ Not Started | |
-| 20 | React: State management | ⬜ Not Started | |
-| 21 | React: Patterns & interview questions | ⬜ Not Started | |
+| 17 | React: Hooks deep dive | ✅ Completed | |
+| 18 | React: Rendering & Reconciliation | ✅ Completed | |
+| 19 | React: Memoization & performance | ✅ Completed | |
+| 20 | React: State management | ✅ Completed | |
+| 21 | React: Patterns & interview questions | ✅ Completed | |
 
 ### Day 12–13: Redux & State Management
 | # | Task | Status | Notes |
@@ -332,11 +332,7 @@
 - `04-explain-performance-tuning.md` — EXPLAIN, connection pooling, Redis cache
 - `05-mnc-frequently-asked.md` — 25 MNC interview Qs: JOINs, indexing, transactions, window functions, MongoDB aggregation, schema design
 
-### 07-System-Design/ (4 files)
-- `01-auth-caching-api.md` — JWT, Redis strategies, REST, pagination, rate limiting
-- `02-queues-scaling-observability.md` — Bull/SQS, scaling, Lambda, logging
-- `03-architecture-scenarios.md` — URL shortener, chat system, search design
-- `04-mnc-frequently-asked.md` — 24 MNC interview Qs: auth, caching, API design, queues, scaling, microservices, architecture scenarios
+
 
 ### 08-DSA/ (11 files)
 - `01-arrays-strings.md` — Patterns, 10 problems, complexity table
@@ -362,19 +358,41 @@
 ### 11-AI-Risk-Assistant-Project/ (1 file)
 - `README.md` — Full architecture, schemas, API design, project structure
 
+### 12-Company/ (5 files)
+- `capgemini-L2-interview-prep.md` — Capgemini L2 guide (Node.js, system design, behavioral)
+- `infosys-L2-interview-prep.md` — Infosys L2 guide
+- `deloitte-interview-prep.md` — Deloitte LSA guide
+- `citiustech-L1-interview-prep.md` — CitiusTech L1 healthcare-focused guide
+- `encora-L2-backend-engineer.md` — Encora L2 backend engineer prep
+
+### 13-System Design in Depth/ (9 files)
+- `01-networking-basics.md` — TCP/IP, HTTP, TLS fundamentals for SRE/system design
+- `01-system-design-interview-prep.md` — High-level system design interview tactics
+- `02-scalability.md` — Scaling patterns, partitioning, sharding
+- `03-databases.md` — RDBMS vs NoSQL, indexing strategies, OLTP/OLAP
+- `04-caching.md` — Redis patterns, cache invalidation, cache-aside
+- `05-system-architecture.md` — Microservices, monoliths, event-driven
+- `06-message-queues.md` — Kafka, SQS, idempotency, DLQs
+- `07-reliability-and-availability.md` — HA, failover, backups
+- `08-classic-design-problems.md` — Real problems and solutions
+
+### 14-salary/ (1 file)
+- `salary-negotiation-mastery.md` — Comprehensive negotiation handbook (Completed)
+
 ---
 
 ## Progress Summary
 
 | Category | Total Items | Completed | % Done |
-|----------|------------|-----------|--------|
-| JS Study Topics | 3 | 0 | 0% |
+|----------|------------:|-----------:|--------:|
+| JS Study Topics | 3 | 3 | 100% |
 | TypeScript Topics | 5 | 0 | 0% |
-| Node.js Topics | 5 | 0 | 0% |
-| React Topics | 5 | 0 | 0% |
+| Node.js Topics | 5 | 5 | 100% |
+| React Topics | 5 | 5 | 100% |
 | Redux Topics | 4 | 0 | 0% |
 | SQL/MongoDB Topics | 5 | 0 | 0% |
 | System Design Topics | 6 | 0 | 0% |
+| System Design in Depth | 9 | 9 | 100% |
 | DSA Problems | 75 | 0 | 0% |
 | JS Puzzles & Polyfills | 17 | 0 | 0% |
 | Advanced / Senior Level | 6 | 0 | 0% |
@@ -382,9 +400,11 @@
 | Agentic AI Topics | 2 | 0 | 0% |
 | AI Project Build | 5 | 0 | 0% |
 | **MNC Frequently Asked** | **9** | **0** | **0%** |
+| 12-Company | 5 | 5 | 100% |
+| Salary folder | 1 | 1 | 100% |
 | Interview Prep | 1 | 0 | 0% |
 | Mock Interviews | 5 | 0 | 0% |
-| **TOTAL** | **158** | **0** | **0%** |
+| **TOTAL** | **173** | **28** | **16%** |
 
 ---
 
