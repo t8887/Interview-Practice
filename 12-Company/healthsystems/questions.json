@@ -1,0 +1,407 @@
+[
+  {
+    "id": "hs-001",
+    "company": "HealthSystems",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Medium",
+    "question": "Explain the JS event loop and microtask queue.",
+    "answer": "The event loop continuously checks the call stack. When it's empty it pulls tasks in priority order: microtask queue (Promises, queueMicrotask) drained completely first, then macro-task queue (setTimeout, I/O). In Node.js, process.nextTick runs before Promise microtasks. Output of: console.log('1'); setTimeout(()=>console.log('2'),0); Promise.resolve().then(()=>console.log('3')); console.log('4'); is 1, 4, 3, 2.",
+    "tags": ["event-loop", "promises", "async", "node.js"]
+  },
+  {
+    "id": "hs-002",
+    "company": "HealthSystems",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Medium",
+    "question": "What is TypeScript structural typing and how does it differ from nominal typing?",
+    "answer": "TypeScript uses structural typing: two types are compatible if they have the same shape regardless of name. Nominal typing (Java/C#) requires the same declared type name. In healthcare code, use branded types (type PatientId = string & { __brand: 'PatientId' }) to get nominal-like safety on PHI IDs and prevent mixing them.",
+    "tags": ["typescript", "type-system", "structural-typing", "branded-types"]
+  },
+  {
+    "id": "hs-003",
+    "company": "HealthSystems",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Easy",
+    "question": "What are the differences between null, undefined, and optional chaining in TypeScript?",
+    "answer": "undefined = variable declared but not assigned; null = explicit no-value sentinel. Optional chaining ?. short-circuits to undefined if left side is null/undefined without throwing. In strictNullChecks mode TS forces you to handle both — critical when reading PHI from a DB with partial records.",
+    "tags": ["typescript", "null-safety", "optional-chaining"]
+  },
+  {
+    "id": "hs-004",
+    "company": "HealthSystems",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Medium",
+    "question": "Explain closures and give a practical use case in a backend Node.js service.",
+    "answer": "A closure is a function that retains access to its lexical scope after the outer function returns. Practical uses: middleware factories with configuration captured in closure (rate limiters, loggers with trace IDs), memoisation, partial application. Example: makeRateLimiter(100) returns a function that closes over count and windowStart.",
+    "tags": ["closures", "javascript", "functional"]
+  },
+  {
+    "id": "hs-005",
+    "company": "HealthSystems",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Easy",
+    "question": "What is the difference between == and ===? When does type coercion cause bugs?",
+    "answer": "=== checks value AND type. == triggers type coercion. Dangerous coercions: null==undefined (true), 0==false (true), []==![] (true). In healthcare, comparing a form-submitted age string '0' to a numeric threshold with == gives a silent clinical bug. Always ===, always parse/validate at trust boundaries.",
+    "tags": ["javascript", "coercion", "type-safety"]
+  },
+  {
+    "id": "hs-006",
+    "company": "HealthSystems",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Medium",
+    "question": "What are TypeScript decorators and where would you use them?",
+    "answer": "Decorators wrap classes, methods, properties or parameters at design time (enabled via experimentalDecorators). Healthcare uses: @AuditLog on PHI write methods, @RequireRole('DOCTOR') on endpoints, @ValidateDTO on input handlers. NestJS uses decorators extensively. Example: a method decorator that logs before/after PHI updates with userId and traceId from AsyncLocalStorage context.",
+    "tags": ["typescript", "decorators", "nestjs", "audit", "healthcare"]
+  },
+  {
+    "id": "hs-007",
+    "company": "HealthSystems",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Medium",
+    "question": "Explain Promise.allSettled vs Promise.all and when you'd choose each.",
+    "answer": "Promise.all — rejects immediately if any promise rejects (fail-fast), returns resolved values array. Promise.allSettled — waits for all regardless of outcome, returns [{status:'fulfilled'|'rejected', value/reason}]. Use Promise.all when all tasks are required (transaction-like). Use allSettled for fan-out where partial success is OK — e.g. sending notifications via email + SMS + push where one failing shouldn't block others.",
+    "tags": ["promises", "async", "error-handling"]
+  },
+  {
+    "id": "hs-008",
+    "company": "HealthSystems",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Medium",
+    "question": "How does TypeScript's unknown type differ from any? Why prefer it for external data?",
+    "answer": "any turns off type checking entirely. unknown is type-safe: you can assign anything to it but can't use it without narrowing first. For healthcare: any data from an external FHIR server, ABDM gateway webhook, or lab result must come in as unknown and be validated (zod/yup) before touching your domain model. This prevents PHI corruption from malformed payloads.",
+    "tags": ["typescript", "unknown", "type-safety", "validation"]
+  },
+  {
+    "id": "hs-009",
+    "company": "HealthSystems",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Medium",
+    "question": "How does Node.js handle concurrency with a single thread?",
+    "answer": "Node uses a single-threaded event loop for JS execution but offloads I/O to libuv which manages a thread pool (default 4) and OS async I/O (epoll/kqueue/IOCP). Network I/O uses non-blocking sockets — no thread needed. Node is excellent for I/O-bound workloads but blocks on CPU-heavy work. Use worker_threads or a separate Lambda for PDF generation, DICOM processing, or image compression.",
+    "tags": ["node.js", "event-loop", "libuv", "concurrency"]
+  },
+  {
+    "id": "hs-010",
+    "company": "HealthSystems",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Hard",
+    "question": "What is process.nextTick and when should you avoid it?",
+    "answer": "process.nextTick queues a callback before the next event loop iteration — after synchronous code but before any I/O/timer callbacks and before Promise microtasks. Avoid recursive nextTick — it starves the event loop and blocks I/O. Prefer setImmediate to yield after I/O, or Promise.resolve() for microtask-level scheduling. Never use recursive nextTick inside a bulk HL7 file processing loop.",
+    "tags": ["node.js", "event-loop", "process.nextTick", "performance"]
+  },
+  {
+    "id": "hs-011",
+    "company": "HealthSystems",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Hard",
+    "question": "How do you design an Express middleware for request tracing and PHI audit logging?",
+    "answer": "Use AsyncLocalStorage to propagate traceId and userId across async boundaries without prop-drilling. Tracing middleware generates UUID traceId, stores in AsyncLocalStorage, sets response header. PHI audit logging happens at the service layer (not just HTTP layer) so background jobs also get logged. Separate audit log stream from application log with 7-year retention for DPDP compliance.",
+    "tags": ["node.js", "express", "middleware", "audit-logging", "async-local-storage", "dpdp"]
+  },
+  {
+    "id": "hs-012",
+    "company": "HealthSystems",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Medium",
+    "question": "Explain Node.js streams and when you'd use them for healthcare data.",
+    "answer": "Streams process data in chunks rather than buffering everything in memory. Four types: Readable, Writable, Duplex, Transform. Healthcare use cases: streaming large FHIR Bundle exports (tens of thousands of observations), processing bulk HL7 v2 messages from lab systems, streaming audit logs to S3. Use pipeline() for backpressure handling. Without streams, a 500MB lab result file would OOM a Lambda with 512MB memory.",
+    "tags": ["node.js", "streams", "memory", "fhir", "hl7"]
+  },
+  {
+    "id": "hs-013",
+    "company": "HealthSystems",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Medium",
+    "question": "How do you handle database transactions in a Node.js / PostgreSQL service?",
+    "answer": "Use try/catch/finally pattern: BEGIN → operations → COMMIT; ROLLBACK on error; release() in finally. Always release the connection even on error. In healthcare a partial write is a patient safety issue — e.g. creating a care transfer record and updating current_facility_id must be atomic. For ORMs use $transaction (Prisma) or transaction managers (TypeORM).",
+    "tags": ["postgresql", "transactions", "node.js", "data-integrity"]
+  },
+  {
+    "id": "hs-014",
+    "company": "HealthSystems",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Medium",
+    "question": "What is the difference between horizontal and vertical scaling, and how does Node.js cluster mode fit?",
+    "answer": "Vertical scaling = bigger machine (ceiling + single PoF). Horizontal scaling = more instances behind LB. Node's single-threaded model means one process = one CPU core. Cluster module forks worker processes (one per core) sharing the same port. In production prefer horizontal scaling via ECS/Lambda — easier reasoning, process isolation, built-in auto-scaling. Cluster is useful on a single EC2 to saturate all cores.",
+    "tags": ["node.js", "scaling", "cluster", "architecture"]
+  },
+  {
+    "id": "hs-015",
+    "company": "HealthSystems",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Medium",
+    "question": "How do you prevent N+1 query problems in a REST API returning patient lists with appointments?",
+    "answer": "N+1 happens when you fetch N patients then run 1 query per patient. Solutions: (1) JOIN at DB level and reshape in app code; (2) DataLoader pattern — batch + deduplicate child queries by parent ID, all calls batched into one DB query per request; (3) ORM eager loading (Prisma include). DataLoader is the cleanest for GraphQL; JOIN is best for REST with known shape.",
+    "tags": ["database", "performance", "n+1", "dataloader", "sql"]
+  },
+  {
+    "id": "hs-016",
+    "company": "HealthSystems",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Hard",
+    "question": "How do you implement idempotency in a payment or prescription-creation endpoint?",
+    "answer": "Client sends Idempotency-Key header. Server checks Redis for key — if found, replay stored response. If not found, set Redis lock (NX flag) to prevent concurrent duplicates, execute the operation, store result in Redis (TTL 24h), return result. On lock exists: return 409. This prevents double-prescriptions or double-charges from retry storms.",
+    "tags": ["idempotency", "redis", "api-design", "healthcare", "payments"]
+  },
+  {
+    "id": "hs-017",
+    "company": "HealthSystems",
+    "category": "System Design & Architecture",
+    "difficulty": "Hard",
+    "question": "Design a telemedicine appointment booking system for 100K concurrent users.",
+    "answer": "Client → CloudFront → API Gateway → Booking Lambda → DynamoDB (appointments) + SQS (notifications). Doctor availability cached in Redis (Elasticache) with slot-duration TTL. Slot booking uses DynamoDB conditional writes (ConditionExpression: slot_status=available) — lost race gets ConditionalCheckFailedException → 409 → client retries. Notification Lambda decoupled via SQS. PHI separation: metadata in DynamoDB, clinical notes in S3+KMS. ABDM: link each appointment to ABHA ID, push discharge FHIR DocumentReference to HIE.",
+    "tags": ["system-design", "dynamodb", "redis", "sqs", "telemedicine", "abdm"]
+  },
+  {
+    "id": "hs-018",
+    "company": "HealthSystems",
+    "category": "System Design & Architecture",
+    "difficulty": "Hard",
+    "question": "How would you design a FHIR-compliant API layer for an Indian hospital?",
+    "answer": "FHIR Facade (Express/NestJS) translates internal domain model to FHIR R4 resources on the way out — don't store raw FHIR in DB. Terminology service for SNOMED/LOINC/ICD-10 cached in Redis. ABDM integration: HIU and HIP roles. Consent flow: HIU requests consent via ABDM CM → patient approves → CM issues artefact → HIU presents artefact to HIP → HIP returns encrypted FHIR Bundle. FHIR Subscriptions for real-time push of new Observations.",
+    "tags": ["fhir", "abdm", "api-design", "healthcare", "india"]
+  },
+  {
+    "id": "hs-019",
+    "company": "HealthSystems",
+    "category": "System Design & Architecture",
+    "difficulty": "Hard",
+    "question": "How do you architect a multi-tenant SaaS for multiple hospitals while keeping PHI isolated?",
+    "answer": "Silo model for PHI (separate DB per tenant) + pool model for non-PHI (billing, analytics). Routing: JWT contains tenant_id → Lambda resolves DB connection from config service. Key controls: separate KMS key per tenant so one compromise can't decrypt others; IAM roles scoped to S3 prefix per tenant; audit logs include tenant_id in every record; annual VAPT for tenant isolation.",
+    "tags": ["multi-tenancy", "security", "architecture", "kms", "phi"]
+  },
+  {
+    "id": "hs-020",
+    "company": "HealthSystems",
+    "category": "System Design & Architecture",
+    "difficulty": "Hard",
+    "question": "How would you design real-time vitals monitoring for ICU patients?",
+    "answer": "IoT Device → AWS IoT Core (MQTT) → IoT Rules Engine → Kinesis Data Streams (processor Lambda) + Lambda (Alerting → SNS → nurse pager). TimescaleDB for time-series storage. Alert de-duplication via Redis. Raw vitals → S3 Parquet after 24h via Kinesis Firehose; queryable via Athena. Each vital = FHIR Observation with LOINC code. Alert threshold rules in DynamoDB, configurable per patient.",
+    "tags": ["iot", "kinesis", "real-time", "fhir", "loinc", "icu", "system-design"]
+  },
+  {
+    "id": "hs-021",
+    "company": "HealthSystems",
+    "category": "System Design & Architecture",
+    "difficulty": "Hard",
+    "question": "How do you handle eventual consistency in a distributed healthcare system?",
+    "answer": "Strategies: (1) Read-your-writes — route user's own reads to primary; (2) Saga pattern for distributed transactions — each step idempotent with compensating action; (3) Event sourcing — source of truth is the event log, read models built from events; (4) CRDTs for counters (bed occupancy). At Vkonnect: SQS + idempotent Lambda consumers for telemedicine session state.",
+    "tags": ["distributed-systems", "eventual-consistency", "saga", "event-sourcing"]
+  },
+  {
+    "id": "hs-022",
+    "company": "HealthSystems",
+    "category": "AWS / Cloud",
+    "difficulty": "Medium",
+    "question": "Walk me through how you'd use AWS Lambda + SQS for a healthcare notification pipeline.",
+    "answer": "Booking Lambda → SQS → Notification Lambda (batch=10) → SES/SNS/FCM. Key configs: visibility timeout = Lambda timeout × 1.5; DLQ after 3 failures + CloudWatch alarm; idempotency via Redis messageId check; SQS SSE with CMK for PHI in payloads. FIFO for ordering-critical flows, Standard for idempotent fan-out. Lesson: always set DLQ alarm — silent failures discovered by angry users.",
+    "tags": ["lambda", "sqs", "aws", "serverless", "notifications"]
+  },
+  {
+    "id": "hs-023",
+    "company": "HealthSystems",
+    "category": "AWS / Cloud",
+    "difficulty": "Hard",
+    "question": "How do you secure PHI in AWS?",
+    "answer": "Defense in depth: (1) Encryption at rest — S3 SSE-KMS, RDS encryption, DynamoDB encryption, separate KMS key per data classification tier; (2) TLS 1.2+ everywhere; (3) IAM least-privilege per Lambda function, no wildcard actions; (4) Lambda in VPC, RDS in private subnets, VPC Endpoints for S3/DynamoDB; (5) CloudTrail + S3 access logs + RDS audit log with 7-year retention (DPDP); (6) Secrets Manager with auto-rotation; (7) VAPT before production launch.",
+    "tags": ["aws", "security", "kms", "iam", "vpc", "phi", "dpdp"]
+  },
+  {
+    "id": "hs-024",
+    "company": "HealthSystems",
+    "category": "AWS / Cloud",
+    "difficulty": "Medium",
+    "question": "Explain CloudFormation nested stacks and when you'd use them.",
+    "answer": "Nested stack = CloudFormation stack created as AWS::CloudFormation::Stack resource in a parent. Use when: stack has >500 resources (CF limit); you want to reuse a network/IAM/DB template across environments; different teams own different stacks. Parent passes outputs as parameters to children via !GetAtt NestedStack.Outputs.VpcId. At UTEC: separate stacks for API, DB, notifications, frontend CDN.",
+    "tags": ["cloudformation", "iac", "aws", "nested-stacks"]
+  },
+  {
+    "id": "hs-025",
+    "company": "HealthSystems",
+    "category": "AWS / Cloud",
+    "difficulty": "Hard",
+    "question": "How would you design an event-driven architecture using EventBridge for a hospital workflow?",
+    "answer": "PatientService publishes 'PatientDischarged' event to EventBridge. Rules fan out to: BillingLambda (generate invoice), BedManagementLambda (mark bed available), ABDMSyncLambda (push FHIR discharge summary to HIE), ICUMetricsLambda (ward-specific rule). Benefits over direct calls: loose coupling, add new consumers without touching existing code, EventBridge Pipes for transformation, Archive+Replay for reprocessing after bug fixes.",
+    "tags": ["eventbridge", "event-driven", "aws", "healthcare", "fhir"]
+  },
+  {
+    "id": "hs-026",
+    "company": "HealthSystems",
+    "category": "AWS / Cloud",
+    "difficulty": "Medium",
+    "question": "How do you manage multiple environments (dev/staging/prod) in a serverless AWS project?",
+    "answer": "SSM Parameter Store for environment-specific config under /env/{env}/service/key. CloudFormation Environment parameter propagated through all stacks for resource name derivation. Separate AWS accounts for prod (tighter IAM) vs dev/staging. SAM/CDK pipelines promote artifacts dev→test→preprod→prod with approval gate before prod. Feature flags for dark launches. At UTEC: 5 environments (local, dev, test, preprod, prod).",
+    "tags": ["aws", "environments", "ssm", "cloudformation", "ci-cd"]
+  },
+  {
+    "id": "hs-027",
+    "company": "HealthSystems",
+    "category": "React / React Native",
+    "difficulty": "Medium",
+    "question": "How do you optimise re-renders in a React component that displays a large patient list?",
+    "answer": "React.memo for list items + useCallback for stable handler references + useMemo for derived/sorted data. Use all three together or none — using only one rarely helps. For 10K+ rows use react-window (FixedSizeList) to virtualise — only render visible items. The triangle: memo stops child re-render only if props are referentially stable (useCallback/useMemo provide that stability).",
+    "tags": ["react", "performance", "memo", "usecallback", "virtualisation"]
+  },
+  {
+    "id": "hs-028",
+    "company": "HealthSystems",
+    "category": "React / React Native",
+    "difficulty": "Hard",
+    "question": "How do you handle offline-first functionality in a React Native telemedicine app?",
+    "answer": "Write to local store (WatermelonDB/SQLite) first, sync to server when online. Mark records with syncStatus: 'pending'. NetInfo listener triggers sync on reconnect. Per-record try/catch: mark as 'synced' on success, 'failed' on error. Conflict resolution: last-write-wins for most appointment data; CRDT or merge UI for clinical notes. At Vkonnect: offline symptom capture synced when rural patient regained connectivity.",
+    "tags": ["react-native", "offline-first", "watermelondb", "sync", "telemedicine"]
+  },
+  {
+    "id": "hs-029",
+    "company": "HealthSystems",
+    "category": "React / React Native",
+    "difficulty": "Medium",
+    "question": "What is React's Concurrent Mode and how do Suspense boundaries improve UX?",
+    "answer": "Concurrent Mode lets React pause, interrupt, and resume rendering — no more synchronous blocking renders. Suspense lets you declare loading states: component suspends until data loads, fallback renders in the meantime. Multiple Suspense boundaries let different parts of the UI load independently. useTransition marks non-urgent updates (search input) so React can interrupt them for high-priority work (typing). In clinical UIs: nurse typing a drug name shouldn't lag because a background list re-render is blocking.",
+    "tags": ["react", "concurrent-mode", "suspense", "usetransition", "performance"]
+  },
+  {
+    "id": "hs-030",
+    "company": "HealthSystems",
+    "category": "React / React Native",
+    "difficulty": "Medium",
+    "question": "How do you manage global state in a large React app without Redux?",
+    "answer": "React Query for server state (caching, refetching, optimistic updates, background sync built in) + Zustand for UI state (modals, sidebar, selections — tiny store, no boilerplate). Redux is appropriate when: you need DevTools time-travel for complex debugging, many cross-slice dependencies, or the team already knows it. Don't reach for Redux by default — React Query alone eliminates 70% of what Redux was used for.",
+    "tags": ["react", "state-management", "react-query", "zustand", "redux"]
+  },
+  {
+    "id": "hs-031",
+    "company": "HealthSystems",
+    "category": "Healthcare Domain & Compliance",
+    "difficulty": "Hard",
+    "question": "What is ABDM and how would you integrate a hospital app with it?",
+    "answer": "ABDM (Ayushman Bharat Digital Mission) = India's national digital health infrastructure: ABHA ID (14-digit health ID), HFR (Hospital registry), HPR (Doctors registry), HIE (FHIR-based record exchange), Consent Manager. Integration: register in HFR → implement HIP role (expose FHIR Bundle endpoint called by ABDM gateway after consent) → implement HIU role (request consent, receive artefact, call CM to fetch FHIR Bundle). DPDP overlay: consent must be purpose-limited, time-bound, revocable. Store consent artefacts with full audit trail.",
+    "tags": ["abdm", "abha", "fhir", "healthcare", "india", "compliance"]
+  },
+  {
+    "id": "hs-032",
+    "company": "HealthSystems",
+    "category": "Healthcare Domain & Compliance",
+    "difficulty": "Medium",
+    "question": "What is FHIR and how does it differ from HL7 v2?",
+    "answer": "HL7 v2 = pipe-delimited message format from 1980s, used via MLLP TCP transport, dominant in legacy HIS/lab systems. FHIR R4 = REST + JSON/XML, resource-based, designed for web APIs and mobile. Key difference: FHIR is RESTful CRUD on resources using OAuth2/SMART; HL7 v2 is message-based point-to-point. ABDM mandates FHIR R4. Most Indian HIS still emits HL7 v2 — write a translation layer (HL7 v2 → FHIR transformer) at the integration boundary.",
+    "tags": ["fhir", "hl7", "interoperability", "healthcare", "abdm"]
+  },
+  {
+    "id": "hs-033",
+    "company": "HealthSystems",
+    "category": "Healthcare Domain & Compliance",
+    "difficulty": "Hard",
+    "question": "How does the DPDP Act 2023 affect how you store and process PHI in India?",
+    "answer": "DPDP Act 2023 = India's primary data privacy law. Key engineering implications: (1) Explicit purpose-limited consent before processing; (2) Purpose limitation — appointment data can't be used for marketing; (3) Data minimisation — log IDs not full objects; (4) Storage limitation — define retention periods, enforce with DynamoDB TTL + S3 lifecycle rules; (5) Data principal rights (access/erasure within 72h); (6) Breach notification to PDPB within 72h; (7) Data localisation — health data in India (ap-south-1). Fines up to ₹250 crore.",
+    "tags": ["dpdp", "privacy", "compliance", "india", "phi", "gdpr"]
+  },
+  {
+    "id": "hs-034",
+    "company": "HealthSystems",
+    "category": "Healthcare Domain & Compliance",
+    "difficulty": "Hard",
+    "question": "What is a consent artefact in ABDM and how do you implement the consent flow?",
+    "answer": "A consent artefact is a digitally signed, time-bound, purpose-limited authorization that a patient grants via ABDM Consent Manager specifying: which records, which HIU, purpose, validity, permitted data categories. Flow: HIU requests consent via ABDM CM → CM notifies patient via ABHA app → patient approves/rejects → CM sends artefact to HIU webhook → HIU calls CM health-information/request with ECDH public key → CM fetches from HIP → HIP returns encrypted FHIR Bundle → HIU decrypts with private key. Node.js: use crypto.createECDH('prime256v1').",
+    "tags": ["abdm", "consent", "fhir", "ecdh", "healthcare", "india"]
+  },
+  {
+    "id": "hs-035",
+    "company": "HealthSystems",
+    "category": "Healthcare Domain & Compliance",
+    "difficulty": "Medium",
+    "question": "How would you handle PHI in logs?",
+    "answer": "Never log raw patient objects. Implement a PHI scrubber middleware that redacts known PHI fields (name, dob, aadhaar, mobile, email, address, diagnosis) to '[REDACTED]'. Log IDs only, not values. Disable debug-level logging in production or add the scrubber to the logger transport. Treat CloudWatch Logs as a PHI system if any PHI could leak in — apply the same access controls. Audit log is separate from application log with 7-year retention.",
+    "tags": ["logging", "phi", "security", "healthcare", "compliance"]
+  },
+  {
+    "id": "hs-036",
+    "company": "HealthSystems",
+    "category": "Company / Product-Specific",
+    "difficulty": "Hard",
+    "question": "Our platform needs to integrate with existing hospital HIS systems that use HL7 v2. How would you approach it?",
+    "answer": "Stand up a Node.js MLLP listener (TCP server): strip MLLP framing (0x0B prefix, 0x1C 0x0D suffix), parse HL7 segments, send ACK. MLLP listener publishes to SQS; downstream services consume independently. Map HL7 v2 segments to internal canonical model → FHIR R4 via a mapper service (not ad-hoc string parsing everywhere). Monitor: ACK timeouts, parse errors, DLQ depth. Framing: HIS retransmits if no ACK within 30s.",
+    "tags": ["hl7", "mllp", "integration", "healthcare", "node.js"]
+  },
+  {
+    "id": "hs-037",
+    "company": "HealthSystems",
+    "category": "Company / Product-Specific",
+    "difficulty": "Medium",
+    "question": "How would you implement role-based access control for a hospital with doctors, nurses, admins, and patients?",
+    "answer": "RBAC + ABAC hybrid: roles for coarse-grained access, attributes for fine-grained. Permissions per role cached in Redis. ABAC: doctor can only read their assigned patients; patient can only read own records. Enforcement at 3 layers: (1) API Gateway authorizer (JWT validation), (2) Express middleware (permission check per route), (3) PostgreSQL row-level security (belt + suspenders for PHI). JWT: sign with RS256, include role + facilityId + permissions array.",
+    "tags": ["rbac", "abac", "authorization", "jwt", "healthcare", "security"]
+  },
+  {
+    "id": "hs-038",
+    "company": "HealthSystems",
+    "category": "Company / Product-Specific",
+    "difficulty": "Medium",
+    "question": "Our app needs to support teleconsultation with video. How would you integrate it?",
+    "answer": "Use Amazon Chime SDK or Daily.co (both HIPAA-eligible, good India latency). Create meeting per appointment with ClientRequestToken=appointmentId (idempotent). Create attendees for doctor + patient. Return join credentials to each client — they use the SDK to join. Security: one-time meeting IDs, attendee tokens expire at meeting end, no recording by default (DPDP), WebRTC DTLS/SRTP for media encryption. MediaRegion: ap-southeast-1 (Singapore) for lowest latency from India.",
+    "tags": ["video-call", "webrtc", "telemedicine", "amazon-chime", "react-native"]
+  },
+  {
+    "id": "hs-039",
+    "company": "HealthSystems",
+    "category": "Company / Product-Specific",
+    "difficulty": "Hard",
+    "question": "How would you approach migrating a monolith hospital management system to microservices?",
+    "answer": "Strangler Fig pattern: incrementally extract services without big-bang rewrite. (1) Map monolith into bounded contexts (Patient, Appointments, Billing, Lab, Pharmacy). (2) Extract low-risk first: Notifications (no DB dependency), then Auth (central value). (3) Anti-corruption layer: new services call monolith via adapter. (4) Strangle gradually: new features = microservices; high-churn modules extracted; stable modules stay. Data: each service owns its DB; sync via CDC during dual-write; retire monolith table after service is primary.",
+    "tags": ["microservices", "strangler-fig", "migration", "architecture", "cdc"]
+  },
+  {
+    "id": "hs-040",
+    "company": "HealthSystems",
+    "category": "Company / Product-Specific",
+    "difficulty": "Hard",
+    "question": "How do you ensure uptime for a healthcare app that hospitals depend on 24/7?",
+    "answer": "Multi-AZ deployment (RDS Multi-AZ, Lambda auto-AZ, ECS tasks spread). Health checks + auto-healing (ALB health checks, ECS task replacement). Circuit breaker for downstream HIS/ABDM (opossum library): fail fast rather than queue. Graceful degradation: ABDM gateway down → queue SQS + retry; appointment booking still works. Canary/blue-green deployments with automated rollback on CloudWatch alarm breach. Runbooks linked in every alarm description. On-call rotation. At UTEC: automated rollback saved two 3 AM incidents from becoming outages.",
+    "tags": ["reliability", "sla", "circuit-breaker", "blue-green", "runbooks", "healthcare"]
+  },
+  {
+    "id": "hs-041",
+    "company": "HealthSystems",
+    "category": "Behavioral / STAR",
+    "difficulty": "Medium",
+    "question": "Tell me about a time you built something at scale that you're proud of.",
+    "answer": "UTEC/UltraTech construction SaaS, 6M users. I owned the notification and event pipeline across 245+ Lambda functions. Designed event-driven pipeline: SNS → SQS → Lambda consumers with DLQ fallback. Idempotency via Redis deduplication. Nested CloudFormation stacks across 5 environments. Led VAPT remediation — 14 security findings fixed before launch. Result: zero critical incidents in Q1, pipeline handled 50K events/hour during promotions, VAPT passed with no high/critical findings.",
+    "tags": ["behavioral", "star", "utec", "scale", "lambda", "cloudformation"]
+  },
+  {
+    "id": "hs-042",
+    "company": "HealthSystems",
+    "category": "Behavioral / STAR",
+    "difficulty": "Medium",
+    "question": "Describe a situation where you had to make a technical decision with incomplete information.",
+    "answer": "EY Risk.ai: mid-project OpenAI released a new model — better reasoning but unknown latency. Shadow evaluation: ran 50 real risk documents through both models, measured quality and P95 latency. New model was 40% better on reasoning but 1.8s slower at P95. Decision: upgrade for document analysis agent (quality-critical) but keep old model for real-time chat (speed-critical). Documented tradeoff rationale. Result: two-tier model became production architecture; Risk.ai now processes 200+ documents/day.",
+    "tags": ["behavioral", "star", "ey", "ai", "decision-making"]
+  },
+  {
+    "id": "hs-043",
+    "company": "HealthSystems",
+    "category": "Behavioral / STAR",
+    "difficulty": "Hard",
+    "question": "Tell me about a production incident you caused or had to fix.",
+    "answer": "UTEC: notification queue hit 200K messages (10x normal) during contractor payment day. CloudWatch: Lambda errors spiking on payment-confirmation-sender. Root cause: third-party SMS provider changed API response format; parser threw on every message causing retries. Fix: deployed backward-compatible parser handling both old and new format. Temporary: raised Lambda concurrency from 10 to 100 to drain backlog. Result: queue cleared in 90 minutes. Post-incident: added Pact contract tests for all third-party API integrations.",
+    "tags": ["behavioral", "star", "incident-response", "debugging", "sqs"]
+  },
+  {
+    "id": "hs-044",
+    "company": "HealthSystems",
+    "category": "Behavioral / STAR",
+    "difficulty": "Medium",
+    "question": "How have you handled disagreement with a senior engineer or tech lead about an architectural decision?",
+    "answer": "UTEC: tech lead wanted notification templates as hard-coded Lambda env vars. I flagged that marketing would need a deployment for every copy change. First understood his concern (DB latency on hot path). Proposed middle ground: DynamoDB templates with 5-minute TTL cache in Lambda memory — 0.2ms vs 0ms, negligible difference. Built PoC and benchmarked. Presented data, not opinion. Lead agreed. Result: marketing updated templates 12 times in first month without a single deployment.",
+    "tags": ["behavioral", "star", "collaboration", "architecture", "influence"]
+  },
+  {
+    "id": "hs-045",
+    "company": "HealthSystems",
+    "category": "Behavioral / STAR",
+    "difficulty": "Easy",
+    "question": "Why do you want to work in healthcare tech specifically?",
+    "answer": "Built Vkonnect Health — telemedicine for rural India. Saw patients in tier-3 towns connect with specialists for the first time. A bug in retail is recoverable; a missed medication reminder is not. Healthcare is the right level of stakes for the engineering difficulty. I want to build software where ABDM compliance, offline-first mobile, FHIR interoperability, and DPDP privacy all have to work together — and where getting it right has a direct visible impact on health outcomes.",
+    "tags": ["behavioral", "motivation", "healthcare", "vkonnect"]
+  }
+]

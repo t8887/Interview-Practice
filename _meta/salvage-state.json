@@ -1,0 +1,37 @@
+{
+  "folder": "12-Company",
+  "phase": "plan",
+  "processed": [],
+  "pending": [
+    "healthsystems/README.md",
+    "healthsystems/questions.json",
+    "setu-health/README.md",
+    "setu-health/questions.json",
+    "teksystems-hsbc/README.md",
+    "teksystems-hsbc/questions.json",
+    "teksystems-hsbc/teksystems-hsbc-nodejs-backend.md",
+    "metron-security-doselect-prep.md",
+    "bolttech-multivision-interview-prep.md",
+    "guardian-india/guardian-prep.md",
+    "coforge-tech-lead/coforge-prep.md",
+    "HCLTech_MERN_Interview_Prep.md",
+    "EY-HDFC-Ergo-Apigee/interview-prep.md",
+    "infosys-L2-interview-prep.md",
+    "tcs-L2-hr-preparation.md",
+    "deloitte-cyber-1hour-cram.md",
+    "deloitte-interview-prep.md",
+    "encora-L2-backend-engineer.md",
+    "persistent-aws-backend-developer.md",
+    "citiustech-L1-interview-prep.md",
+    "capgemini-L2-interview-prep.md",
+    "recro-cheq-nodejs-prep.md",
+    "INDEX.md"
+  ],
+  "created_or_modified": [
+    "_meta/salvage-plan-12-Company.md",
+    "_meta/salvage-state.json"
+  ],
+  "log": [
+    "2026-08-19: PHASE plan complete. Inventoried 22 files (~205K words). Wrote _meta/salvage-plan-12-Company.md with per-file section-level classification, strip list, company-name map, 10 proposed new destination files, 8 flagged/ambiguous items, and a 6-batch execute order. Awaiting 'approve plan'."
+  ]
+}

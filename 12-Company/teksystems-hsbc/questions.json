@@ -1,0 +1,407 @@
+[
+  {
+    "id": "tek-001",
+    "company": "TEKsystems-HSBC",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Hard",
+    "question": "Predict the output: ordering of setTimeout(0), setImmediate, process.nextTick, and a resolved Promise.",
+    "answer": "Sync code runs first (start, end). Then microtasks drain: process.nextTick queue first, then the Promise queue (nextTick, promise). Then macrotasks: setTimeout(0) (timers phase, ~1ms clamp) vs setImmediate (check phase) order is non-deterministic at the top level, but inside an I/O callback setImmediate reliably fires first. Output: start, end, nextTick, promise, then timeout/immediate. nextTick has higher priority than Promise microtasks; overusing it starves the loop.",
+    "tags": ["javascript", "event-loop", "microtasks", "output-prediction", "karat"]
+  },
+  {
+    "id": "tek-002",
+    "company": "TEKsystems-HSBC",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Easy",
+    "question": "Why does a var loop counter inside an async callback print the wrong value?",
+    "answer": "var is function-scoped and hoisted, so all async callbacks share one i; by the time they run the loop has finished and i===3, printing 3,3,3. let is block-scoped with a TDZ, giving each iteration its own binding, so it prints 0,1,2. Rule: const by default, let when mutation is needed, never var — in async money-handling code a var counter is a silent bug.",
+    "tags": ["javascript", "scope", "hoisting", "closures", "var-let-const"]
+  },
+  {
+    "id": "tek-003",
+    "company": "TEKsystems-HSBC",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Medium",
+    "question": "Promise.all vs allSettled vs race vs any — when do you use each?",
+    "answer": "all: settles when all fulfil or first rejects (fail-fast) — fan-out where every call must succeed. allSettled: waits for all, returns {status,value/reason} each, never rejects — batch of independent ops where partial failure is acceptable. race: first to settle (fulfil or reject) — implement timeouts via race([work,timeout]). any: first to fulfil, else AggregateError — first healthy replica wins. Also: await p1; await p2 is sequential (double latency if independent) — use Promise.all for concurrency.",
+    "tags": ["javascript", "promises", "async", "concurrency"]
+  },
+  {
+    "id": "tek-004",
+    "company": "TEKsystems-HSBC",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Medium",
+    "question": "Implement debounce and explain how it differs from throttle.",
+    "answer": "debounce(fn,delay): clearTimeout then setTimeout on each call — runs fn only after a quiet period (search-as-you-type, autosave, resize-end). throttle(fn,limit): run immediately then ignore calls until limit ms elapses — guarantees a steady max rate (scroll, telemetry, rate-limited API calls). Debounce = 'fire after it stops'; throttle = 'fire at most every N ms'. Both are closures over a timer. Classic KARAT/Mettl JS-mechanics question.",
+    "tags": ["javascript", "debounce", "throttle", "closures", "karat"]
+  },
+  {
+    "id": "tek-005",
+    "company": "TEKsystems-HSBC",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Medium",
+    "question": "Write a deep clone. What are the pitfalls of JSON.parse(JSON.stringify(x))?",
+    "answer": "A recursive deepClone handles primitives, Date, RegExp, arrays/objects, and uses a WeakMap to handle circular references. JSON.parse(JSON.stringify(x)) pitfalls: drops undefined/functions/Symbols, turns Date into a string, loses Map/Set/RegExp/BigInt, throws on circular refs, and converts NaN/Infinity to null. Fine for plain JSON-safe DTOs only. Modern alternative: structuredClone() (Node 17+) handles cycles, Maps/Sets, typed arrays — but not functions.",
+    "tags": ["javascript", "deep-clone", "recursion", "structuredClone"]
+  },
+  {
+    "id": "tek-006",
+    "company": "TEKsystems-HSBC",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Medium",
+    "question": "What is the satisfies operator in TypeScript and when is it useful?",
+    "answer": "satisfies (TS 4.9+) checks a value conforms to a type while keeping the most specific inferred type, instead of widening to the annotation. e.g. const routes = {...} satisfies RouteConfig — validates the shape AND retains literal keys/values so you keep autocomplete and catch unknown keys at compile time. A plain : RouteConfig annotation validates shape but loses the literal keys. Useful for config objects, route maps, enum-like records. Signals you keep current with the language.",
+    "tags": ["typescript", "satisfies", "type-system"]
+  },
+  {
+    "id": "tek-007",
+    "company": "TEKsystems-HSBC",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Hard",
+    "question": "Explain the Node.js event loop and its phases.",
+    "answer": "Node runs JS on one main thread with a non-blocking model built on libuv. Phases in order: timers (setTimeout/setInterval), pending callbacks, idle/prepare (internal), poll (retrieve+run I/O callbacks; loop blocks here waiting for I/O), check (setImmediate), close callbacks. Between every phase Node drains microtasks: process.nextTick queue first, then the Promise queue. A long synchronous task blocks the entire loop, stalling every concurrent request — so offload CPU-bound work to worker_threads.",
+    "tags": ["node.js", "event-loop", "libuv", "phases"]
+  },
+  {
+    "id": "tek-008",
+    "company": "TEKsystems-HSBC",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Medium",
+    "question": "setTimeout(fn,0) vs setImmediate(fn) vs process.nextTick(fn)?",
+    "answer": "process.nextTick runs before the loop proceeds to the next phase — soonest, highest priority, overuse starves I/O. setImmediate runs in the check phase right after poll. setTimeout(fn,0) runs in the timers phase with a ~1ms minimum clamp. Inside an I/O callback, setImmediate reliably fires before setTimeout(0) (already past poll, check is next). At the top level the order between those two is non-deterministic. nextTick and Promise microtasks always run before either.",
+    "tags": ["node.js", "event-loop", "setImmediate", "nextTick", "timers"]
+  },
+  {
+    "id": "tek-009",
+    "company": "TEKsystems-HSBC",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Hard",
+    "question": "Node is 'single-threaded' — how does it do work in parallel?",
+    "answer": "JS execution is single-threaded, but the libuv thread pool (default 4, UV_THREADPOOL_SIZE) handles work the OS can't do async natively: fs.*, dns.lookup(), some crypto (pbkdf2, randomBytes, bcrypt), and zlib. Network I/O does NOT use the thread pool — it uses OS async primitives (epoll/kqueue/IOCP), so thousands of sockets scale without a thread per connection. Gotcha: bcrypt on every request consumes the 4 pool threads — a burst queues behind 4 slots; move it off the hot path or raise UV_THREADPOOL_SIZE.",
+    "tags": ["node.js", "libuv", "thread-pool", "concurrency"]
+  },
+  {
+    "id": "tek-010",
+    "company": "TEKsystems-HSBC",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Medium",
+    "question": "How do you scale Node across CPU cores — cluster vs worker_threads?",
+    "answer": "cluster forks multiple processes, each with its own event loop and memory, sharing a port via the primary (round-robin) — best for scaling request handling/I/O across cores; a dead worker auto-restarts. worker_threads are threads in one process with shared memory (SharedArrayBuffer) — best for CPU-bound work (parsing, crypto) that would block the main loop. Production: PM2 (cluster + zero-downtime reload) or horizontal scaling behind a load balancer/Kubernetes, one Node process per container. One-liner: cluster = scale I/O via processes; worker_threads = move CPU work off the main loop; containers+LB = scale across machines.",
+    "tags": ["node.js", "cluster", "worker-threads", "scaling", "pm2"]
+  },
+  {
+    "id": "tek-011",
+    "company": "TEKsystems-HSBC",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Medium",
+    "question": "How do you handle errors correctly in async Node code?",
+    "answer": "async/await: wrap awaited calls in try/catch. Express: route async errors to error-handling middleware (err,req,res,next) registered last; use an async wrapper (fn(req,res,next).catch(next)) so rejected promises reach it. Process-level: handle unhandledRejection and uncaughtException to log + gracefully shut down — after an uncaught exception the process state is unknown, so drain connections and exit, letting the orchestrator restart; don't keep serving. Distinguish operational errors (handle/retry) from programmer errors (fail fast).",
+    "tags": ["node.js", "error-handling", "express", "async", "reliability"]
+  },
+  {
+    "id": "tek-012",
+    "company": "TEKsystems-HSBC",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Hard",
+    "question": "What is backpressure in Node streams and how do you handle it?",
+    "answer": "Backpressure is when a Writable can't consume data as fast as the Readable produces it; without handling, data buffers in memory until OOM. write() returns false when the buffer is full — pause the readable and resume on the writable's 'drain' event. Best: use stream/promises pipeline(readable, transform, writable) which handles backpressure, error propagation, and cleanup automatically. Banking scenario: streaming a large settlement export from S3 through a parser to a DB writer floods the sink and OOMs the worker without backpressure.",
+    "tags": ["node.js", "streams", "backpressure", "pipeline", "memory"]
+  },
+  {
+    "id": "tek-013",
+    "company": "TEKsystems-HSBC",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Hard",
+    "question": "How do you find and prevent memory leaks in a long-running Node service?",
+    "answer": "Causes: unbounded caches/Maps, accumulating event listeners (no removeListener), uncleared timers/intervals, closures holding large refs, module-scope state growing per request, leaked DB connections. Detect: trend process.memoryUsage() (heapUsed, rss); take two heap snapshots via --inspect + Chrome DevTools minutes apart and find growing objects; clinic.js/0x flame graphs; node --prof. Fix: bound caches with lru-cache (max + ttl), clear timers on SIGTERM, register listeners once outside handlers, pool/release DB connections. Banking: memory stability = availability; add canary deploy + alert on memory trend. This is an explicit HSBC question.",
+    "tags": ["node.js", "memory-leak", "heap-snapshot", "lru-cache", "profiling"]
+  },
+  {
+    "id": "tek-014",
+    "company": "TEKsystems-HSBC",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Medium",
+    "question": "Design a robust retry mechanism with exponential backoff. Why jitter?",
+    "answer": "Loop up to maxAttempts; on failure, if not the last attempt and the error is retryable, wait min(baseMs * 2^(attempt-1) + random()*baseMs, maxMs) then retry. Exponential backoff spaces out retries so you don't hammer a struggling downstream. Jitter (randomness) is critical at scale: without it, thousands of clients that failed simultaneously retry at the same instant — a thundering herd that takes the upstream down again. Only retry idempotent/transient failures (timeouts, 503); never blindly retry a money debit without an idempotency key, nor a 400 validation error.",
+    "tags": ["node.js", "retry", "exponential-backoff", "jitter", "resilience"]
+  },
+  {
+    "id": "tek-015",
+    "company": "TEKsystems-HSBC",
+    "category": "REST API & Express Design",
+    "difficulty": "Hard",
+    "question": "Design a secure REST API from scratch.",
+    "answer": "Resources as nouns, correct verbs; idempotency (GET/PUT/DELETE idempotent, POST not) with idempotency keys for money operations. Proper status codes (2xx, 4xx incl 409/422/429, 5xx). Schema-validate every input (Zod/Joi) — never trust the client. AuthN/AuthZ via OAuth2/JWT, least-privilege scopes, RBAC. Hardening: helmet headers, CORS allow-list, rate limiting, request-size limits, npm audit/Snyk, secrets in a secrets manager. Versioning (/v1), cursor/offset pagination (no unbounded sets). Observability: structured logs with correlation IDs, metrics, append-only audit logs. TLS everywhere; encrypt at rest. An explicit HSBC favourite — lead with security and idempotency.",
+    "tags": ["rest-api", "security", "idempotency", "express", "validation"]
+  },
+  {
+    "id": "tek-016",
+    "company": "TEKsystems-HSBC",
+    "category": "REST API & Express Design",
+    "difficulty": "Easy",
+    "question": "What's the correct Express middleware order and why does it matter?",
+    "answer": "request → global middleware (request logging, body parser, helmet, cors, rate limiter) → route middleware (authentication, authorization, validation) → route handler → error-handling middleware (err,req,res,next) registered LAST. Order matters because middleware runs top-to-bottom: body parsing must precede handlers reading req.body; auth must precede the guarded handler; the 4-arg error handler must be last or Express won't route errors to it. Forgetting next(err) / .catch(next) on async handlers means errors never reach it and requests hang.",
+    "tags": ["express", "middleware", "error-handling"]
+  },
+  {
+    "id": "tek-017",
+    "company": "TEKsystems-HSBC",
+    "category": "REST API & Express Design",
+    "difficulty": "Hard",
+    "question": "How do idempotency keys prevent double-processing of payments?",
+    "answer": "A network timeout doesn't tell the client whether the server processed the request, so clients retry — risking a double debit. Client sends a unique idempotency key (UUID) per logical operation. Server stores the key with a uniqueness constraint in the same transaction as the effect (INSERT ... ON CONFLICT DO NOTHING, or DynamoDB ConditionExpression attribute_not_exists). First request processes + persists key + caches the response; a retry with the same key returns the stored original response without re-executing. Keys expire (e.g. 24h). Combine with a forward-only state machine (CREATED→PENDING→SUCCESS|FAILED) via conditional writes. The core correctness pattern for money movement.",
+    "tags": ["idempotency", "payments", "correctness", "state-machine"]
+  },
+  {
+    "id": "tek-018",
+    "company": "TEKsystems-HSBC",
+    "category": "REST API & Express Design",
+    "difficulty": "Medium",
+    "question": "How do you implement API rate limiting in a distributed Node deployment?",
+    "answer": "Per-instance counters don't work behind a load balancer — centralise in Redis so limits are cluster-wide. e.g. key rl:{clientId}:{minuteWindow}, INCR + EXPIRE 60 in a pipeline; allowed if count <= limit. Algorithm trade-offs: fixed-window (simple, boundary bursts), sliding-window (smoother, more state), token bucket (controlled bursts, often best for APIs — implement atomically with a Lua script). On exceed, return 429 with Retry-After and X-RateLimit-* headers.",
+    "tags": ["rate-limiting", "redis", "distributed", "token-bucket", "429"]
+  },
+  {
+    "id": "tek-019",
+    "company": "TEKsystems-HSBC",
+    "category": "REST API & Express Design",
+    "difficulty": "Medium",
+    "question": "REST vs gRPC for inter-service communication — when each?",
+    "answer": "REST/JSON over HTTP: ubiquitous, human-readable, cacheable, great for public/partner APIs and browsers; costs verbose payloads, no built-in streaming, looser contracts. gRPC (HTTP/2 + Protobuf): binary, compact, fast, strongly-typed .proto contracts, bidirectional streaming — great for high-volume internal service-to-service. Also consider async/event-driven (Kafka/queues) for decoupling without a synchronous reply. Rule of thumb: REST at the edge, gRPC for chatty internal calls, events for decoupled workflows. For a bank, add explicit timeouts, circuit breakers, and idempotency on money-mutating calls.",
+    "tags": ["rest", "grpc", "microservices", "protocols"]
+  },
+  {
+    "id": "tek-020",
+    "company": "TEKsystems-HSBC",
+    "category": "Security & Auth",
+    "difficulty": "Medium",
+    "question": "Explain JWT structure and its trade-offs vs server-side sessions.",
+    "answer": "JWT = header.payload.signature, base64url-encoded, signed with HS256 (symmetric) or RS256 (asymmetric — verifiers only need the public key). Stateless: the server validates the signature and stores nothing. Sessions are stateful (server-side store, easy revocation, needs a shared store to scale); JWT scales horizontally but is hard to revoke before exp. Fix the revocation gap with short-lived access tokens + refresh tokens + a denylist/rotation. Store tokens in httpOnly cookies, not localStorage, if XSS is a concern.",
+    "tags": ["jwt", "sessions", "auth", "security"]
+  },
+  {
+    "id": "tek-021",
+    "company": "TEKsystems-HSBC",
+    "category": "Security & Auth",
+    "difficulty": "Hard",
+    "question": "Walk through OAuth2 Authorization Code + PKCE vs Client Credentials.",
+    "answer": "Authorization Code + PKCE: for user-facing apps (SPA/mobile). User authenticates at the auth server; an auth code is returned and exchanged for tokens. PKCE (code_verifier/code_challenge) stops a stolen code from being redeemed by an attacker — essential for public clients that can't keep a secret. Client Credentials: for service-to-service (no user); the service authenticates with its own client ID/secret for its own scopes. AuthN (who you are — OIDC on top of OAuth2) vs AuthZ (what you can do — scopes/roles). Use least-privilege scopes; validate aud/iss/exp on every token.",
+    "tags": ["oauth2", "pkce", "client-credentials", "oidc", "auth"]
+  },
+  {
+    "id": "tek-022",
+    "company": "TEKsystems-HSBC",
+    "category": "Security & Auth",
+    "difficulty": "Hard",
+    "question": "How do you protect a Node API against the OWASP Top 10 risks?",
+    "answer": "Injection: parameterised queries/ORM, validate & sanitise (Zod/Joi), never concatenate input. Broken auth: bcrypt/argon2 hashing, short-lived tokens, MFA, login lockout/rate-limit. Broken access control: enforce RBAC/scopes server-side on every request, object-level authorization (don't let user A read user B's record by ID). Sensitive data: TLS, encryption at rest, mask PII/secrets in logs, never log full PANs. Security misconfig: helmet, CORS allow-list, no verbose stacks in prod. Vulnerable deps: npm audit/Snyk in CI, pin versions. Plus request-size limits, rate limiting, SSRF defence, and audit logging with correlation IDs.",
+    "tags": ["owasp", "security", "injection", "rbac", "node.js"]
+  },
+  {
+    "id": "tek-023",
+    "company": "TEKsystems-HSBC",
+    "category": "Security & Auth",
+    "difficulty": "Medium",
+    "question": "How do you manage secrets and credentials in a Node service?",
+    "answer": "Never hardcode or commit secrets; plain env vars are weak (leak via logs, dumps, dashboards). Use a secrets manager (AWS Secrets Manager / Vault / SSM Parameter Store). Cache at startup with a TTL refresh — don't fetch on every request. Principles: least-privilege IAM (read only its own secret ARN), automatic rotation (rotate DB passwords without downtime), separate secrets per environment, audit access. Non-sensitive config goes in Parameter Store / env. Leaked credentials at a bank = account takeover + regulatory action.",
+    "tags": ["secrets", "security", "secrets-manager", "rotation", "iam"]
+  },
+  {
+    "id": "tek-024",
+    "company": "TEKsystems-HSBC",
+    "category": "Security & Auth",
+    "difficulty": "Medium",
+    "question": "How do you ensure auditability and data protection in a banking backend?",
+    "answer": "Append-only audit log: every state-changing action (who/what/when/before-after/correlation ID) to an immutable store, never updated/deleted in place — a compliance requirement. Correlation/trace IDs threaded through every service so an action is reconstructable end to end. Mask PII/account numbers in all logs (****1234); never log tokens/passwords/full PANs. Encryption: TLS in transit, encryption at rest (HSM/KMS keys), tokenise card data (PCI-DSS). RBAC on production data + access logging + periodic access review. Retention per regulation with controlled deletion.",
+    "tags": ["audit", "compliance", "banking", "encryption", "pii"]
+  },
+  {
+    "id": "tek-025",
+    "company": "TEKsystems-HSBC",
+    "category": "Databases & Caching",
+    "difficulty": "Hard",
+    "question": "Explain ACID and SQL isolation levels. Which anomalies do they prevent?",
+    "answer": "ACID: Atomicity (all-or-nothing), Consistency (constraints hold), Isolation (concurrent txns don't corrupt each other), Durability (committed data survives crashes). Isolation levels weak→strong: Read Uncommitted (allows dirty/non-repeatable/phantom reads), Read Committed (prevents dirty), Repeatable Read (prevents dirty + non-repeatable; MySQL InnoDB also blocks many phantoms via gap locks), Serializable (prevents all three). Stronger isolation = more locking = less concurrency. Ledger/money path leans strong; analytics reads can use Read Committed. HSBC probes these even at senior level.",
+    "tags": ["sql", "acid", "isolation-levels", "transactions", "dbms"]
+  },
+  {
+    "id": "tek-026",
+    "company": "TEKsystems-HSBC",
+    "category": "Databases & Caching",
+    "difficulty": "Medium",
+    "question": "How do database indexes work, and how do you diagnose a slow query?",
+    "answer": "An index (usually a B-tree) keeps column values sorted for O(log n) lookups vs an O(n) full scan, at the cost of storage and slower writes. Composite index (a,b) helps WHERE a=? AND b=? and WHERE a=?, but not WHERE b=? alone (leftmost-prefix rule). A covering index includes all columns a query needs so it's answered from the index alone. Diagnose with EXPLAIN/EXPLAIN ANALYZE — look for full scans, chosen index, estimated vs actual rows, join order. Avoid functions on indexed columns in WHERE (kills index use); watch for ORM N+1 patterns.",
+    "tags": ["sql", "indexes", "b-tree", "explain", "query-tuning"]
+  },
+  {
+    "id": "tek-027",
+    "company": "TEKsystems-HSBC",
+    "category": "Databases & Caching",
+    "difficulty": "Medium",
+    "question": "SQL vs NoSQL — when do you choose each for a banking system?",
+    "answer": "SQL (Postgres/MySQL): strong ACID, relational integrity, joins, multi-row transactions — use for accounts, ledgers, balances needing strong consistency. NoSQL (MongoDB/DynamoDB): flexible schema, horizontal scale via sharding, BASE/eventual consistency, high write throughput — use for events, sessions, audit/event streams, catalogues, denormalised read views. Mongo has multi-document ACID since 4.0 but it costs performance. Polyglot persistence is fine: ledger in Postgres, events in Kafka, hot reads/sessions in Redis. Scale reads via replication, writes via sharding (mind cross-shard joins & rebalancing).",
+    "tags": ["sql", "nosql", "mongodb", "polyglot-persistence", "consistency"]
+  },
+  {
+    "id": "tek-028",
+    "company": "TEKsystems-HSBC",
+    "category": "Databases & Caching",
+    "difficulty": "Medium",
+    "question": "Explain caching strategies and Redis use cases.",
+    "answer": "Patterns: cache-aside/lazy (check cache, on miss load from DB and populate — most common), write-through (write cache+DB together, fresh but slower writes), write-behind (write cache now, flush async — fast but risk of loss). Redis use cases: read cache, session store, rate-limit counters, pub/sub, distributed locks (Redlock with caveats), leaderboards (sorted sets), queues. The hard part is invalidation: TTLs, bust on write, careful key naming. For money data don't cache authoritative balances (stale-read risk); cache reference/lookup data instead.",
+    "tags": ["caching", "redis", "cache-aside", "invalidation"]
+  },
+  {
+    "id": "tek-029",
+    "company": "TEKsystems-HSBC",
+    "category": "Databases & Caching",
+    "difficulty": "Hard",
+    "question": "What is a cache stampede (and a hot key), and how do you mitigate them?",
+    "answer": "Cache stampede/thundering herd: a popular key expires and thousands of concurrent requests miss at once, all recomputing the same value and overloading the DB. Mitigations: locking/single-flight (first miss recomputes under a lock, others wait for the fresh value — request coalescing), jittered TTLs so keys don't all expire together, early/probabilistic recompute before expiry, stale-while-revalidate (serve stale while one worker refreshes). Hot key: one key saturates a single Redis shard — mitigate with local in-process caching in front of Redis, key replication/sharding, or splitting the value.",
+    "tags": ["caching", "cache-stampede", "hot-key", "redis", "scaling"]
+  },
+  {
+    "id": "tek-030",
+    "company": "TEKsystems-HSBC",
+    "category": "Databases & Caching",
+    "difficulty": "Medium",
+    "question": "Difference between a message queue and pub/sub, and when do you use each?",
+    "answer": "Message queue (SQS, RabbitMQ): one consumer per message, competing consumers load-balance work, retained until consumed — use for task/work distribution (process each payment job once, smooth spikes). Pub/sub (SNS, Kafka, EventBridge): every subscriber gets each message (fan-out), configurable retention (Kafka replayable) — use for event broadcast/audit streams (a PaymentCompleted event triggers billing AND audit AND notification AND analytics). Combined SNS→SQS fan-out gives one queue per consumer = independent failure domains and scaling.",
+    "tags": ["message-queue", "pub-sub", "sqs", "kafka", "event-driven"]
+  },
+  {
+    "id": "tek-031",
+    "company": "TEKsystems-HSBC",
+    "category": "System Design & Architecture",
+    "difficulty": "Medium",
+    "question": "Walk me through your system-design framework.",
+    "answer": "1) Clarify functional + non-functional requirements, scope, actors. 2) Estimate scale: QPS, read/write ratio, data size, latency targets, growth. 3) Define the API contract. 4) High-level design: clients → LB → services → data stores → queues → cache. 5) Data model: storage choice, schema, access patterns. 6) Deep-dive the 1-2 hardest parts (consistency, hot path, bottleneck). 7) Scale & resilience: caching, sharding, replication, LB, rate limiting, circuit breakers, failover. 8) Name trade-offs explicitly (CAP, consistency vs availability, cost). A repeatable framework stops you freezing and signals architect-level structure.",
+    "tags": ["system-design", "framework", "architecture"]
+  },
+  {
+    "id": "tek-032",
+    "company": "TEKsystems-HSBC",
+    "category": "System Design & Architecture",
+    "difficulty": "Hard",
+    "question": "Design a money / fund transfer service.",
+    "answer": "Requirements: transfer X from A→B, never lose or double-apply money, auditable, highly available. Use a double-entry ledger in a strongly consistent SQL store — model each transfer as immutable debit + credit records, never mutate balances in place (balance = sum of ledger entries). Idempotency key per request dedupes retries. Atomic debit+credit in one DB transaction within a single DB; across services use a saga with compensating transactions (reserve→debit→credit→confirm; reverse on failure). Outbox pattern + queue for reliable event publishing. Append-only audit log. HA: multi-AZ, synchronous replication, defined RPO/RTO. Trade-off: strong consistency over latency on the money path (CP under partition); eventual consistency fine for notifications/analytics.",
+    "tags": ["system-design", "payments", "ledger", "saga", "idempotency", "consistency"]
+  },
+  {
+    "id": "tek-033",
+    "company": "TEKsystems-HSBC",
+    "category": "System Design & Architecture",
+    "difficulty": "Medium",
+    "question": "Microservices vs monolith — when do you choose each?",
+    "answer": "Monolith: simpler to build/deploy/debug early, one codebase, strong consistency easy; hurts at scale via deploy coupling, scale-everything-together, large blast radius. Microservices: independent deploy/scale, team autonomy, fault isolation, polyglot; costs distributed-systems complexity, network failures, distributed transactions (saga/eventual consistency), observability overhead, ops burden. Mature take: start with a modular monolith; extract services along bounded contexts when scaling/team/deploy pressure justifies it — don't pay the distributed-systems tax before you need to. Communicate sync (REST/gRPC) vs async (events); use an API gateway, service discovery, circuit breakers.",
+    "tags": ["microservices", "monolith", "architecture", "bounded-contexts"]
+  },
+  {
+    "id": "tek-034",
+    "company": "TEKsystems-HSBC",
+    "category": "System Design & Architecture",
+    "difficulty": "Medium",
+    "question": "Kafka vs RabbitMQ — how do you choose?",
+    "answer": "Kafka: distributed commit log, very high throughput, partitions + consumer groups, ordering per partition, replayable (retain and re-consume) — best for event streaming, event sourcing, analytics, audit streams. RabbitMQ: traditional AMQP broker, rich routing via exchanges, per-message ack, DLQ, priority, lower latency for task/work queues; messages typically gone after consumption. Pick Kafka for high-volume event streams + replay/audit; RabbitMQ for complex routing and reliable task distribution. For a bank, Kafka's replayable ordered log doubles as an auditable event source.",
+    "tags": ["kafka", "rabbitmq", "messaging", "event-streaming"]
+  },
+  {
+    "id": "tek-035",
+    "company": "TEKsystems-HSBC",
+    "category": "System Design & Architecture",
+    "difficulty": "Hard",
+    "question": "How do you design resilience into a distributed system?",
+    "answer": "Retries with exponential backoff + jitter for transient failures. Circuit breaker: stop calling a failing downstream after N failures, fail fast, periodically probe to recover — prevents cascading failure. Bulkhead: isolate resource pools so one slow dependency can't exhaust all threads/connections. Idempotency keys for safe retries on mutating ops. Rate limiting (token/leaky bucket). Timeouts on every network call. Graceful degradation/fallbacks (serve stale/partial data). DLQ for poison messages. Health checks (liveness/readiness) + multi-AZ failover. Design for failure as the default — the banking reliability mindset.",
+    "tags": ["resilience", "circuit-breaker", "bulkhead", "retries", "distributed-systems"]
+  },
+  {
+    "id": "tek-036",
+    "company": "TEKsystems-HSBC",
+    "category": "System Design & Architecture",
+    "difficulty": "Hard",
+    "question": "How would you design zero-downtime deployments for a payment service?",
+    "answer": "Constraints: no in-flight transaction lost, no consumer sees errors. Expand/contract DB migrations: add new columns nullable first, deploy code reading new-with-fallback-to-old, then deploy code dropping old references, then drop columns — never break old code in one step. Blue-green/canary: deploy new version alongside old, smoke-test, shift traffic 5%→25%→50%→100% with health/error-rate alarms, auto-rollback on breach, drain old instances before terminating. Idempotency as safety net: an instance killed mid-request is retried with the same key and the new version returns the recorded result (no double-charge). Graceful shutdown on SIGTERM: stop new requests, finish in-flight, close pools.",
+    "tags": ["deployment", "zero-downtime", "blue-green", "canary", "migrations"]
+  },
+  {
+    "id": "tek-037",
+    "company": "TEKsystems-HSBC",
+    "category": "System Design & Architecture",
+    "difficulty": "Medium",
+    "question": "How do you do observability across microservices?",
+    "answer": "Three pillars tied together by a correlation/trace ID. Logs: structured JSON with a correlation ID propagated across every service and log line so one request is reconstructable end to end; mask PII. Metrics: RED (Rate, Errors, Duration) per endpoint, business metrics (payment.success/failed), resource metrics (memory trend for leaks); alert on SLO breaches. Distributed tracing: OpenTelemetry/X-Ray, inject the W3C traceparent header into every outbound HTTP call and queue message so a trace threads gateway→service→queue→worker→downstream; sample (5% normal, 100% errors). You can't console.log-debug a payment failure across 6 services at 3am.",
+    "tags": ["observability", "tracing", "metrics", "logging", "opentelemetry"]
+  },
+  {
+    "id": "tek-038",
+    "company": "TEKsystems-HSBC",
+    "category": "DevOps / CI-CD / Containers",
+    "difficulty": "Medium",
+    "question": "How do you build a production-grade Docker image for a Node service?",
+    "answer": "Multi-stage build: a build stage with dev deps (compile TS, run tests), then copy only built artefacts + production deps into a slim runtime stage (node:20-slim/alpine) — smaller image, smaller attack surface. Run as non-root (USER node). Use .dockerignore to exclude node_modules/.git/secrets from the build context. npm ci --omit=dev for reproducible production-only installs. Add a HEALTHCHECK; 12-factor config via env vars (no baked-in secrets). Pin a base image digest; scan the image (Trivy/Snyk) in CI.",
+    "tags": ["docker", "multi-stage-build", "containers", "security"]
+  },
+  {
+    "id": "tek-039",
+    "company": "TEKsystems-HSBC",
+    "category": "DevOps / CI-CD / Containers",
+    "difficulty": "Hard",
+    "question": "Design a CI/CD pipeline for a microservices app at a bank.",
+    "answer": "commit → lint + unit tests → build image → SAST + dependency/secret scan (security gate, fail the build) → push to registry → deploy to staging → integration/e2e tests → canary or blue-green to prod → automated rollback on health-check failure. Bank-specific emphasis: security gates as blocking steps (SAST like SonarQube/CodeQL, dependency scan like Snyk/npm audit, secret scanning, container image scan); zero-downtime release via canary/blue-green with auto-rollback; separation of duties and prod-deploy approvals; immutable signed artefacts with a full audit trail; environment parity and infrastructure-as-code. An explicit HSBC question — lead with security gates and zero-downtime.",
+    "tags": ["ci-cd", "pipeline", "security-gates", "devops", "blue-green"]
+  },
+  {
+    "id": "tek-040",
+    "company": "TEKsystems-HSBC",
+    "category": "DevOps / CI-CD / Containers",
+    "difficulty": "Medium",
+    "question": "How do you do a zero-data-loss database migration during a cutover?",
+    "answer": "Backfill + dual-write: copy historical data, then dual-write to old and new stores keeping the old as source of truth; reconcile counts/checksums. Use expand/contract schema changes so old and new code both work during the transition. Run a reconciliation job comparing row counts and checksums before cutover; investigate drift. Cutover: flip reads to the new store behind a feature flag during a low-traffic window, keeping the old store as instant rollback for a defined period. Migration scripts must be idempotent and resumable. (Maps to the P&G Olay BigCommerce→Shopify migration.) Zero data loss + tested rollback = the correctness/auditability mindset a bank wants.",
+    "tags": ["database-migration", "cutover", "dual-write", "reconciliation", "rollback"]
+  },
+  {
+    "id": "tek-041",
+    "company": "TEKsystems-HSBC",
+    "category": "Behavioral / STAR",
+    "difficulty": "Medium",
+    "question": "'We get it done': tell me about delivering at scale under pressure.",
+    "answer": "STAR. Situation: UTEC platform had to support ~6M users with [deadline pressure]. Task: I owned [backend module / API performance] and had to make it hold under peak load. Action: I [introduced caching/queues/serverless autoscaling — e.g. moved hot reads to Redis, added SQS batching, tuned Lambda concurrency]. Result: [reduced p95 latency by X% / handled Y concurrent users / shipped on date with zero rollbacks]. End on a measurable outcome and tie to 'steady progress, clear choices'. (Insert real metrics.)",
+    "tags": ["behavioral", "star", "hsbc-values", "we-get-it-done", "scale"]
+  },
+  {
+    "id": "tek-042",
+    "company": "TEKsystems-HSBC",
+    "category": "Behavioral / STAR",
+    "difficulty": "Hard",
+    "question": "'We take responsibility': a production or security issue you owned end-to-end.",
+    "answer": "STAR. Situation: during VAPT on UTEC, [vulnerability/incident] was found in [service]. Task: I was accountable for remediation under [time/compliance] constraint. Action: I [root-caused it, fixed the vulnerability, added regression tests + monitoring/alerting, documented the fix to prevent recurrence]. Result: [closed all findings / zero recurrence / passed the re-audit]. Owning a security issue is the strongest story for HSBC — accountability + security-first mindset. Lead with how you took responsibility without being asked. (Insert real metrics.)",
+    "tags": ["behavioral", "star", "hsbc-values", "we-take-responsibility", "security"]
+  },
+  {
+    "id": "tek-043",
+    "company": "TEKsystems-HSBC",
+    "category": "Behavioral / STAR",
+    "difficulty": "Medium",
+    "question": "'We succeed together': a cross-functional delivery story.",
+    "answer": "STAR. Situation: the P&G Olay BigCommerce→Shopify migration needed frontend, DevOps, and client stakeholders aligned. Task: I [owned the backend/data migration] while coordinating across teams. Action: I [set up sync points, mapped dependencies, unblocked others, communicated cutover risks early]. Result: [migrated with zero data loss / on-time cutover / X minutes downtime]. Emphasise connecting across boundaries — the definition of 'We succeed together' — and credit the team. (Insert real metrics.)",
+    "tags": ["behavioral", "star", "hsbc-values", "we-succeed-together", "collaboration"]
+  },
+  {
+    "id": "tek-044",
+    "company": "TEKsystems-HSBC",
+    "category": "Behavioral / STAR",
+    "difficulty": "Hard",
+    "question": "'We value difference': a time you incorporated a view unlike your own.",
+    "answer": "STAR. Situation: on [project], a teammate/stakeholder pushed a [different approach] I initially disagreed with. Task: decide the right path without steamrolling them. Action: I [heard them out fully, tested both approaches with data, combined the best of each / changed my mind on the evidence]. Result: [better outcome + stronger team trust]. The value is about seeking views unlike your own with empathy — the best version is one where the other person was partly right and you adapted.",
+    "tags": ["behavioral", "star", "hsbc-values", "we-value-difference", "collaboration"]
+  },
+  {
+    "id": "tek-045",
+    "company": "TEKsystems-HSBC",
+    "category": "Behavioral / STAR",
+    "difficulty": "Easy",
+    "question": "Why HSBC, and how do you handle joining a domain (banking) that's new to you?",
+    "answer": "Why HSBC: global scale + engineering rigour + real impact ('opening up a world of opportunity'), strong fit with my background on security-sensitive, high-scale backends — avoid generic 'big brand' answers. On the domain gap: most of my work has been on large-scale, security-sensitive platforms — UTEC served ~6M users with full VAPT hardening, EY Risk.ai was an enterprise risk product — so while the banking label is new, the engineering concerns banking cares about (data security, auditability, high availability, correctness under load) are exactly what I've built for, and I ramp on domain fast. Back it with a concrete example of learning a new domain quickly (agentic AI at EY in 3 weeks).",
+    "tags": ["behavioral", "why-hsbc", "domain-gap", "motivation"]
+  }
+]

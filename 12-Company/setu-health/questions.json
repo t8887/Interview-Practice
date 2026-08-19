@@ -1,0 +1,407 @@
+[
+  {
+    "id": "setu-001",
+    "company": "Setu",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Easy",
+    "question": "What is the difference between var, let, and const? Why does var cause bugs?",
+    "answer": "var is function-scoped and hoisted (initialised as undefined); let and const are block-scoped with TDZ. Classic bug: for (var i=0; i<3; i++) setTimeout(()=>console.log(i),0) prints 3,3,3 — all closures share the same i. With let it prints 0,1,2 — each iteration has its own block-scoped i. Always const by default, let when mutation is needed, never var in payment processing code.",
+    "tags": ["javascript", "scope", "hoisting", "var", "let", "const"]
+  },
+  {
+    "id": "setu-002",
+    "company": "Setu",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Medium",
+    "question": "Explain how async/await works under the hood.",
+    "answer": "async/await is syntactic sugar over Promises. The compiler transforms async functions into state machines. await yields control to the event loop while the Promise is pending. Errors throw synchronously catchable with try/catch. Critical: await p1; await p2 is sequential (double the latency if independent). await Promise.all([p1, p2]) is concurrent. At Setu's transaction volume, sequential awaits for independent calls adds measurable latency.",
+    "tags": ["async-await", "promises", "javascript", "performance"]
+  },
+  {
+    "id": "setu-003",
+    "company": "Setu",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Hard",
+    "question": "What are generators and when would you use them in a backend service?",
+    "answer": "Generators (function*) can pause execution and yield values one at a time. Use async generators for lazy pagination over large datasets (transaction history) without loading everything into memory. Example: async function* paginator(fetchPage) — yields each page, stops when nextCursor is null. Use in fintech for streaming large settlement files, state machines for multi-step payment flows, or infinite event streams from SQS consumers.",
+    "tags": ["generators", "javascript", "async", "pagination", "fintech"]
+  },
+  {
+    "id": "setu-004",
+    "company": "Setu",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Hard",
+    "question": "What is the Proxy object in JavaScript and give a practical use case?",
+    "answer": "Proxy wraps an object and intercepts operations via handler traps (get, set, delete, apply). Practical use: validation proxy for transaction objects — set trap throws RangeError for negative amounts, TypeError for unsupported currencies. Other uses: Vue 3 reactivity system, memoisation, access logging, mock objects in tests. Important for a company like Setu that values deep language understanding.",
+    "tags": ["javascript", "proxy", "metaprogramming", "validation"]
+  },
+  {
+    "id": "setu-005",
+    "company": "Setu",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Medium",
+    "question": "What is TypeScript's satisfies operator and when is it useful?",
+    "answer": "satisfies (TS 4.9+) validates a value matches a type while retaining the most specific inferred type. Example: API config object satisfies Record<string,{url:string,retries:number}> — validates shape AND retains specific key knowledge for autocomplete. Without satisfies: explicit type annotation loses specific keys. Useful for config objects, route maps, any record where you want both shape validation and full autocomplete.",
+    "tags": ["typescript", "satisfies", "type-system"]
+  },
+  {
+    "id": "setu-006",
+    "company": "Setu",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Hard",
+    "question": "What is tail call optimisation and does Node.js support it?",
+    "answer": "A tail call is the last operation in a function — TCO reuses the current stack frame instead of adding a new one, preventing stack overflow in deep recursion. Tail-recursive factorial uses an accumulator so nothing happens after the recursive call. Node.js: V8 implemented strict-mode TCO in Node 6 but removed it (buggy, not worth maintenance). As of 2024 Node.js does NOT reliably support TCO. Use iterative loops, trampolining, or explicit stacks for deep recursion in payment retry trees.",
+    "tags": ["javascript", "tco", "recursion", "node.js", "v8"]
+  },
+  {
+    "id": "setu-007",
+    "company": "Setu",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Medium",
+    "question": "Explain WeakMap and WeakSet. When would you use them?",
+    "answer": "WeakMap: keys must be objects, held weakly (GC-able when no other ref). No .size, no iteration. WeakSet: same for sets of objects. Use case: per-request cache without preventing GC — when the request object is GC'd, the cache entry is automatically removed. A regular Map would retain the request indefinitely — memory leak. In long-running Node.js payment servers processing millions of requests, WeakMap caches avoid memory leaks that would require restarts.",
+    "tags": ["javascript", "weakmap", "weakset", "memory-management", "gc"]
+  },
+  {
+    "id": "setu-008",
+    "company": "Setu",
+    "category": "Core JavaScript / TypeScript",
+    "difficulty": "Easy",
+    "question": "What is type narrowing in TypeScript? Give three ways to narrow.",
+    "answer": "Type narrowing = TypeScript refines a union type to a more specific type in a conditional block. Methods: (1) Discriminant property — if (result.status === 'success'); (2) typeof — if (typeof val === 'string'); (3) instanceof — if (e instanceof Error); (4) in operator — if ('transactionId' in result); (5) User-defined type guard — function isSuccess(r): r is SuccessResult. Discriminated unions are the backbone of clean API response handling in payment code.",
+    "tags": ["typescript", "type-narrowing", "union-types", "type-guards"]
+  },
+  {
+    "id": "setu-009",
+    "company": "Setu",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Hard",
+    "question": "How does Node.js libuv thread pool work and what operations use it?",
+    "answer": "libuv thread pool (default 4, UV_THREADPOOL_SIZE env) handles: fs.* calls, dns.lookup(), crypto heavy ops (hashing, key gen, randomBytes), zlib, user worker_threads. Does NOT use thread pool: net/HTTP sockets, timers, dns.resolve(). Risk: bcrypt on every API call consumes thread pool slots — at 4 threads + 100 concurrent requests, 96 queue behind 4 bcrypt ops. Solution: move bcrypt off request path or increase UV_THREADPOOL_SIZE.",
+    "tags": ["node.js", "libuv", "thread-pool", "performance", "crypto"]
+  },
+  {
+    "id": "setu-010",
+    "company": "Setu",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Hard",
+    "question": "What is backpressure in Node.js streams and how do you handle it?",
+    "answer": "Backpressure: Writable can't consume as fast as Readable produces — data buffers to OOM. Handling: check write() return value — if false (internal buffer full), pause() the readable; resume on 'drain' event. Best approach: use pipeline() from stream/promises which handles backpressure automatically. Real scenario: streaming 10K UPI settlement transactions from S3 through a parser to a DB write stream — without backpressure handling, the S3 stream floods the DB inserter.",
+    "tags": ["node.js", "streams", "backpressure", "pipeline", "fintech"]
+  },
+  {
+    "id": "setu-011",
+    "company": "Setu",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Medium",
+    "question": "How do you design a robust retry mechanism with exponential backoff?",
+    "answer": "withRetry function: for each attempt up to maxAttempts, catch error, check retryOn predicate (don't retry 400s), compute delay = min(baseDelay * 2^(attempt-1) + random jitter, maxDelay). Jitter is critical at scale — without it, all failed requests retry simultaneously creating a thundering herd that takes down the upstream again. At NPCI's transaction volume, thundering herd from simultaneous retries after a timeout is a real risk.",
+    "tags": ["retry", "exponential-backoff", "jitter", "resilience", "fintech"]
+  },
+  {
+    "id": "setu-012",
+    "company": "Setu",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Medium",
+    "question": "Explain the difference between a message queue and a pub/sub system. When do you use each?",
+    "answer": "Queue (SQS): one consumer per message, competing consumers for load balancing. Pub/Sub (SNS, Kafka, EventBridge): all subscribers receive each message, fan-out. Use queue: payment processing jobs — one Lambda should process each transaction, not all. Use pub/sub: PaymentCompleted event needs to trigger billing update + audit log + notification + analytics. Combined: SNS→SQS fan-out — each consumer gets its own queue with independent failure domain and scaling.",
+    "tags": ["sqs", "sns", "messaging", "pub-sub", "event-driven", "architecture"]
+  },
+  {
+    "id": "setu-013",
+    "company": "Setu",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Medium",
+    "question": "How do you implement rate limiting in a Node.js API?",
+    "answer": "Sliding window counter in Redis: key = rl:{clientId}:{minuteWindow}; INCR + EXPIRE 60s in a pipeline. Return 429 when count exceeds limit. Set X-RateLimit-Remaining header. For distributed Lambda deployments, Redis is shared across all instances — limits are cluster-wide. Use INCR+EXPIRE pipeline for near-atomic operations; Lua script for strict atomicity. Setu must enforce per-client throttles for NPCI/RBI compliance.",
+    "tags": ["rate-limiting", "redis", "api-design", "rbi", "fintech"]
+  },
+  {
+    "id": "setu-014",
+    "company": "Setu",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Easy",
+    "question": "What is the difference between require and import? How does ESM affect Node.js?",
+    "answer": "require = CommonJS (CJS), synchronous, dynamic, loads at runtime. import = ESM, static, async, resolved at parse time. Key difference: ESM imports are live bindings (CJS are copies). ESM enables top-level await and better tree-shaking. Interop caveat: CJS can import ESM (via dynamic import), but CJS can't require() ESM. In TypeScript projects: compile to CJS (module: commonjs) for maximum ecosystem compatibility unless you specifically need ESM features.",
+    "tags": ["node.js", "esm", "commonjs", "modules", "typescript"]
+  },
+  {
+    "id": "setu-015",
+    "company": "Setu",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Hard",
+    "question": "How do you prevent memory leaks in a long-running Node.js service?",
+    "answer": "Common causes: (1) Event listener accumulation — db.on('error', handler) inside request handler adds listener per request; register once outside. (2) Uncleared timers — always clearInterval on SIGTERM. (3) Growing Map/object caches without eviction — use LRUCache with size limit and TTL. (4) Closures holding large objects longer than expected. Detection: --inspect + Chrome DevTools heap snapshots; compare two snapshots 10 min apart. In production: Clinic.js or Datadog Node profiler.",
+    "tags": ["node.js", "memory-leaks", "performance", "lru-cache", "profiling"]
+  },
+  {
+    "id": "setu-016",
+    "company": "Setu",
+    "category": "Node.js Internals & Backend",
+    "difficulty": "Medium",
+    "question": "How do you structure a Node.js / TypeScript monorepo for multiple API services?",
+    "answer": "pnpm workspaces + Turborepo for build orchestration. Structure: packages/shared (DTOs, validators, utility types), packages/upi-service, packages/bbps-service, packages/aa-gateway, apps/api-gateway. Benefits: shared types prevent copy-paste bugs across services; turbo build only rebuilds affected packages (dependency graph aware); single hoisted node_modules. Deployment: each service independently deployable with turbo --filter flag in CI. At UTEC: similar structure across 245+ Lambda functions.",
+    "tags": ["monorepo", "turborepo", "pnpm", "typescript", "microservices"]
+  },
+  {
+    "id": "setu-017",
+    "company": "Setu",
+    "category": "System Design & Architecture",
+    "difficulty": "Hard",
+    "question": "Design a UPI payment collection API for a B2B SaaS platform.",
+    "answer": "Merchant POST /payment-links → Payment Lambda → generate UPI intent via bank partner → store in DynamoDB (status: CREATED). Customer pays → Bank → NPCI → Webhook Receiver Lambda (verify HMAC, enqueue to Kinesis/SQS, ACK immediately). Processor Lambda: idempotency check (DynamoDB conditional write on transactionRef), update status, trigger merchant webhook with retry. State machine: CREATED→PENDING→SUCCESS|FAILED|EXPIRED, forward transitions only. All data in ap-south-1 (RBI localisation).",
+    "tags": ["upi", "system-design", "dynamodb", "idempotency", "payments", "rbi"]
+  },
+  {
+    "id": "setu-018",
+    "company": "Setu",
+    "category": "System Design & Architecture",
+    "difficulty": "Hard",
+    "question": "How would you design the Account Aggregator consent flow?",
+    "answer": "FIU → POST /Consent to AA (customerId, fiTypes, dateRange, purpose). AA redirects customer to consent screen. Customer approves → AA notifies FIU webhook. FIU → POST /FI/request with ECDH public key material. AA fetches from FIP with consent artefact. FIP returns data encrypted with FIU's public key. AA delivers to FIU. FIU decrypts with private key. Node.js: crypto.createECDH('prime256v1'), store private key in Secrets Manager keyed by requestId. Honour revocation events — delete/quarantine fetched data.",
+    "tags": ["account-aggregator", "rbi", "ecdh", "consent", "fintech", "india"]
+  },
+  {
+    "id": "setu-019",
+    "company": "Setu",
+    "category": "System Design & Architecture",
+    "difficulty": "Hard",
+    "question": "How would you design the system to handle 10,000 UPI webhook callbacks per second?",
+    "answer": "Ingestion (fast): ALB → Webhook Receiver Lambda (verify HMAC + write to Kinesis + return 200 ACK). Processing: Kinesis (10 shards × 1000/s = 10K/s) → Processor Lambda (one per shard) → DynamoDB on-demand → SNS → per-merchant SQS queue → Merchant Notification Lambda. Key decisions: Kinesis for ordered-per-shard delivery + replay capability; DynamoDB on-demand auto-scales; partial batch responses for Kinesis to avoid reprocessing successful messages; DLQ after 3 retries → S3 for manual investigation.",
+    "tags": ["upi", "kinesis", "high-throughput", "dynamodb", "system-design", "webhooks"]
+  },
+  {
+    "id": "setu-020",
+    "company": "Setu",
+    "category": "System Design & Architecture",
+    "difficulty": "Hard",
+    "question": "How do you design for zero-downtime deployments in a payment service?",
+    "answer": "DB migrations decouple from code: (1) Add new columns nullable (expand phase); (2) Deploy code reading new column with fallback to old; (3) Never drop columns in same deploy that removes references. Blue-green: deploy to Green, smoke test, gradually shift 5→25→50→100% traffic, drain Blue (30s for in-flight), terminate Blue. Idempotency as safety net: if Lambda killed mid-transaction during deploy, client retries with same idempotency key — new version finds completed-or-pending state.",
+    "tags": ["zero-downtime", "blue-green", "deployment", "idempotency", "payments"]
+  },
+  {
+    "id": "setu-021",
+    "company": "Setu",
+    "category": "System Design & Architecture",
+    "difficulty": "Medium",
+    "question": "How do you handle distributed tracing across multiple microservices?",
+    "answer": "OpenTelemetry (vendor-neutral) + AWS X-Ray or Datadog as backend. Each service: extract W3C traceparent header from incoming request → start span with payment attributes → inject traceparent into all outbound HTTP calls and SQS message attributes. Threads single trace ID across: API Gateway → Payment Lambda → SQS → Notification Lambda → merchant webhook. X-Ray sampling: 5% normal, 100% for errors. Store 30 days.",
+    "tags": ["distributed-tracing", "opentelemetry", "x-ray", "observability", "microservices"]
+  },
+  {
+    "id": "setu-022",
+    "company": "Setu",
+    "category": "AWS / Cloud",
+    "difficulty": "Hard",
+    "question": "How would you architect a multi-region active-active setup for a payment API?",
+    "answer": "Route53 latency-based routing → ap-south-1 + ap-southeast-1. Both regions serve traffic. DynamoDB Global Tables for multi-region replication (~1s lag). Conflict resolution: Global Tables uses last-write-wins with timestamps; use conditional writes with version numbers for payment state machines to detect conflicts. Data residency caveat: if RBI mandates India-only storage (which it does for most payment data), use Active-Passive instead: Mumbai primary, Singapore cold standby with cross-region backup only.",
+    "tags": ["multi-region", "dynamodb-global-tables", "route53", "rbi", "disaster-recovery"]
+  },
+  {
+    "id": "setu-023",
+    "company": "Setu",
+    "category": "AWS / Cloud",
+    "difficulty": "Medium",
+    "question": "Explain AWS Lambda cold starts and how you mitigate them.",
+    "answer": "Cold start = Lambda downloads package + starts runtime + runs init code before first request. Typically 200-800ms for Node.js. Mitigation: (1) Provisioned Concurrency for latency-sensitive paths (payment initiation); (2) Minimize package size with esbuild tree-shaking; (3) Move heavy init outside handler (DB pool, secrets cache at cold start, not per-invocation); (4) EventBridge ping every 5 min to keep warm (free alternative to provisioned concurrency). Not every Lambda needs provisioned concurrency — only the critical P99 paths.",
+    "tags": ["lambda", "cold-starts", "aws", "performance", "provisioned-concurrency"]
+  },
+  {
+    "id": "setu-024",
+    "company": "Setu",
+    "category": "AWS / Cloud",
+    "difficulty": "Medium",
+    "question": "How do you implement a dead letter queue strategy for a payment event pipeline?",
+    "answer": "SQS Main Queue (maxReceiveCount: 3, visibilityTimeout >= Lambda timeout × 6) → DLQ (retention 14 days) + CloudWatch Alarm (DLQ depth > 0 → PagerDuty). DLQ is P1 for a payment team — every message is a failed transaction. After fixing the bug: replay from DLQ to main queue using aws sqs send-message. Never silently swallow DLQ messages. At UTEC: DLQ alarm caught a 2-hour silent notification failure during a promotional campaign.",
+    "tags": ["sqs", "dlq", "reliability", "aws", "monitoring"]
+  },
+  {
+    "id": "setu-025",
+    "company": "Setu",
+    "category": "AWS / Cloud",
+    "difficulty": "Medium",
+    "question": "How do you manage secrets and API keys in a serverless AWS architecture?",
+    "answer": "Never store secrets as plain-text env vars (visible in CloudFormation console and CloudTrail). Use Secrets Manager: cache secret at Lambda cold start with 5-minute TTL (don't call Secrets Manager on every invocation). Enable auto-rotation for DB passwords. Lambda execution role: GetSecretValue only on its specific secret ARN, no wildcard. For non-sensitive config (feature flags, endpoints): SSM Parameter Store Standard tier (free) under /env/{environment}/service/key.",
+    "tags": ["secrets-manager", "ssm", "aws", "security", "lambda"]
+  },
+  {
+    "id": "setu-026",
+    "company": "Setu",
+    "category": "AWS / Cloud",
+    "difficulty": "Medium",
+    "question": "How do you observe and debug a Lambda that is silently failing?",
+    "answer": "Structured logging: every record processed emits {event:'record_processed', recordId, result} or {event:'record_failed', error}. Never swallow errors — re-throw to trigger DLQ. CloudWatch Logs Insights query for silent failures (processed with non-success result). Custom metrics via aws-embedded-metrics: payment.processed, payment.failed, payment.duration; alarm on success rate drop. X-Ray tracing shows which downstream call returned unexpected response even when Lambda didn't throw.",
+    "tags": ["observability", "lambda", "cloudwatch", "x-ray", "debugging"]
+  },
+  {
+    "id": "setu-027",
+    "company": "Setu",
+    "category": "React / React Native",
+    "difficulty": "Medium",
+    "question": "How does React reconciliation (diffing) work?",
+    "answer": "React Fiber reconciler diffs new vDOM against previous. Heuristics: different element types = destroy + recreate; same type = update in place; lists use key prop to match elements across renders. Without stable keys (index as key), React uses positional matching — causes wrong component to update on filter/sort. Fiber enables concurrent rendering by splitting work into pausable/resumable units. Foundation for Suspense and Transitions.",
+    "tags": ["react", "reconciliation", "fiber", "virtual-dom", "keys"]
+  },
+  {
+    "id": "setu-028",
+    "company": "Setu",
+    "category": "React / React Native",
+    "difficulty": "Medium",
+    "question": "How do you test React components effectively?",
+    "answer": "React Testing Library (RTL): test behaviour not implementation. Query by accessible role/label (not className or testId) — if a screen reader can't find it, the test shouldn't either. Use userEvent over fireEvent (simulates real user interactions). Test: form submission (correct payload, success state), validation errors, loading states, error boundaries. Avoid testing internal state or implementation details — they should be refactorable without breaking tests.",
+    "tags": ["react", "testing", "rtl", "testing-library", "jest"]
+  },
+  {
+    "id": "setu-029",
+    "company": "Setu",
+    "category": "React / React Native",
+    "difficulty": "Medium",
+    "question": "How do you handle deep linking and navigation in React Native?",
+    "answer": "React Navigation with Linking config: define prefixes (setu://, https://app.setu.co) and screen patterns (payment/:transactionId, consent/:consentId). Android: Intent filter in AndroidManifest. iOS: URL scheme in Info.plist + Universal Links entitlement. UPI deep links: upi://pay?pa=merchant@upi&pn=Name&am=500&tn=OrderRef — standard format, not custom. After UPI app completes payment, returns to your app via callbackUri. Handle the return link to show payment result.",
+    "tags": ["react-native", "deep-linking", "navigation", "upi", "mobile"]
+  },
+  {
+    "id": "setu-030",
+    "company": "Setu",
+    "category": "React / React Native",
+    "difficulty": "Easy",
+    "question": "What is the Virtual DOM and why does React Native not use it?",
+    "answer": "Virtual DOM = JS representation of UI tree; React diffs it to compute minimal browser DOM mutations. React Native has no browser DOM — renders to native platform views (UIKit on iOS, Android Views). Pipeline: JSX → React reconciler → Shadow tree (JS) → Yoga layout engine (C++ cross-platform layout) → native bridge → native UI. New Architecture (0.71+): JSI replaces the async JSON bridge with synchronous C++ calls (JSI); Fabric is the new renderer; TurboModules are the new native module system.",
+    "tags": ["react-native", "virtual-dom", "jsi", "fabric", "new-architecture"]
+  },
+  {
+    "id": "setu-031",
+    "company": "Setu",
+    "category": "Fintech Domain & Compliance",
+    "difficulty": "Medium",
+    "question": "What is the Account Aggregator framework and how does it differ from screen-scraping?",
+    "answer": "Screen-scraping: third party takes user's bank username/password and logs in on their behalf — illegal under RBI guidelines, insecure, breaks on UI changes. AA: RBI-regulated — user grants consent to specific FIU for specific data + purpose + time period; FIP shares data directly with AA/FIU via ECDH-encrypted channel without credential sharing. Consent is digitally signed, auditable, revocable, purpose-limited. AA eliminates credential theft risk while enabling legitimate data sharing.",
+    "tags": ["account-aggregator", "rbi", "fintech", "india", "consent", "screen-scraping"]
+  },
+  {
+    "id": "setu-032",
+    "company": "Setu",
+    "category": "Fintech Domain & Compliance",
+    "difficulty": "Hard",
+    "question": "What are the key RBI guidelines for payment data storage that affect your API design?",
+    "answer": "RBI Storage of Payment System Data circular: (1) Data localisation — all payment data stored only in India, ap-south-1 only, no cross-region replication with foreign regions; (2) Card data — PCI-DSS compliance, never store CVV, only network tokens, HSM-managed key encryption; (3) 5-year transaction data retention; (4) Role-based access with access logs and quarterly review; (5) RBI breach notification within 6 hours (stricter than DPDP's 72h). Log card numbers as ****1234, never full number.",
+    "tags": ["rbi", "compliance", "pci-dss", "data-localisation", "payment-data"]
+  },
+  {
+    "id": "setu-033",
+    "company": "Setu",
+    "category": "Fintech Domain & Compliance",
+    "difficulty": "Easy",
+    "question": "Explain UPI and NPCI's role in the payment stack. What are UPI's transaction limits?",
+    "answer": "UPI = NPCI's real-time interbank payment protocol on IMPS rails with VPA, instant settlement, 24x7. NPCI operates UPI, IMPS, RuPay, NACH, AePS, BBPS, FASTag. Payment flow: Payer App → PSP → NPCI switch → Beneficiary PSP → Bank. Settlement: NPCI net-settles banks T+1. Limits: regular UPI ₹1 lakh/txn; UPI Lite ₹500/txn ₹2K wallet; specific categories (IPO, medical) higher. Key error codes: ZM (declined by remitter), AM (insufficient funds), XB (not permitted), TS (timeout — retry with same TXNID).",
+    "tags": ["upi", "npci", "fintech", "india", "payments"]
+  },
+  {
+    "id": "setu-034",
+    "company": "Setu",
+    "category": "Fintech Domain & Compliance",
+    "difficulty": "Medium",
+    "question": "What is BBPS and how would you integrate a biller into it?",
+    "answer": "BBPS = NPCI's interoperable bill payment platform (electricity, water, gas, insurance, broadband, etc., 10K+ billers). Actors: COU (customer-facing app), OU (NPCI-licensed entity like Setu), Biller. Integration: biller registers on BBPS → gets Biller ID → exposes fetchBill API (customerIdentifier → billAmount, dueDate) and confirmPayment API (txnId, amount → confirmationNo) → Setu maps to BBPS category → end-to-end test on UAT → NPCI certification → production. Map biller-specific response to BBPS canonical format in the integration layer.",
+    "tags": ["bbps", "npci", "bill-payment", "fintech", "india", "integration"]
+  },
+  {
+    "id": "setu-035",
+    "company": "Setu",
+    "category": "Fintech Domain & Compliance",
+    "difficulty": "Medium",
+    "question": "How does NACH work and what are the failure modes?",
+    "answer": "NACH = RBI/NPCI bulk recurring debit (EMI, SIP mandates, insurance). Mandate registration: customer signs e-NACH → sponsor bank → NPCI → destination bank (3-5 working days). Debit: sponsor sends batch file D-1 → NPCI → destination banks → settlement T+1. Failure codes: 01 (account closed, mark inactive), 05 (do not honor, retry once), 51 (insufficient funds, retry in 3 days + SMS), 54 (expired, re-register), 57 (not permitted, don't retry). Engineering: build async status polling, reconciliation jobs, state machine (PENDING→ACTIVE→PAUSED→CANCELLED).",
+    "tags": ["nach", "npci", "recurring-payments", "fintech", "india"]
+  },
+  {
+    "id": "setu-036",
+    "company": "Setu",
+    "category": "Setu-Specific",
+    "difficulty": "Hard",
+    "question": "How would you improve Setu's developer experience for an API that handles both sync and async callbacks?",
+    "answer": "Four improvements: (1) Webhook + polling fallback — GET /payment-links/{id}/status for developers without tunnel setup; (2) Sandbox instant resolution — X-Setu-Simulate: success|failure|timeout header fires webhook synchronously in sandbox; (3) Webhook inspector dashboard — every delivery attempt, payload, response code, retry history, resend button; (4) SDK-level waitForCompletion() that polls internally and resolves when terminal state, hiding the async complexity. Error messages should include action: 'Re-register mandate via /mandates endpoint'.",
+    "tags": ["developer-experience", "api-design", "sdk", "setu", "webhooks"]
+  },
+  {
+    "id": "setu-037",
+    "company": "Setu",
+    "category": "Setu-Specific",
+    "difficulty": "Hard",
+    "question": "A merchant reports payments going through on their side but not reflecting in your system. How do you debug it?",
+    "answer": "Layer-by-layer investigation: (1) Get merchant's UPI transaction ID from their bank statement; (2) Check NPCI reconciliation feed — did NPCI confirm it? If yes, we missed it; (3) Check webhook_events table by source_transaction_id — did we receive it?; (4) Check idempotency table — did we receive but incorrectly dedup?; (5) Check manual NPCI settlement file (T+1) against our DB — any transaction in NPCI file not in DB = missed webhook → manual credit; (6) Root cause + fix + Pact contract test to prevent recurrence.",
+    "tags": ["debugging", "payments", "incident-response", "setu", "reconciliation"]
+  },
+  {
+    "id": "setu-038",
+    "company": "Setu",
+    "category": "Setu-Specific",
+    "difficulty": "Medium",
+    "question": "How would you design Setu's SDK for Node.js? What would the ideal API surface look like?",
+    "answer": "SDK design principles: amounts in paise (no float bugs), all timestamps as Date objects, typed discriminated unions for event types (SetuPaymentEvent | SetuRefundEvent), idempotency keys built-in (merchantOrderId = natural idempotency key), auto-retry for network errors but not business logic errors. Include: setu.webhooks.parse(body, signature) for built-in signature verification; setu.payments.waitForCompletion(id, {timeout, pollInterval}) to hide async complexity. Structured errors with code + action fields.",
+    "tags": ["sdk", "api-design", "typescript", "setu", "developer-experience"]
+  },
+  {
+    "id": "setu-039",
+    "company": "Setu",
+    "category": "Setu-Specific",
+    "difficulty": "Hard",
+    "question": "Setu processes billions of rupees in transactions. How would you approach a performance regression?",
+    "answer": "Systematic investigation: (1) Define which metric degraded (P50/P99 latency, error rate, throughput) with baseline; (2) Correlate with deploy timeline vs traffic spike vs upstream degradation; (3) Flame graph/profiling (clinic flame or 0x on Lambda with representative traffic replay); (4) DB query analysis — pg_stat_statements for queries with mean_exec_time > 100ms (missing index is #1 cause of post-deploy regressions); (5) N+1 check; (6) Memory pressure / GC pause metrics. After fix: load test with Artillery/k6 on staging before promoting.",
+    "tags": ["performance", "debugging", "postgresql", "profiling", "fintech"]
+  },
+  {
+    "id": "setu-040",
+    "company": "Setu",
+    "category": "Setu-Specific",
+    "difficulty": "Easy",
+    "question": "Why do you want to join Setu specifically?",
+    "answer": "Setu is building India's financial infrastructure layer — the same model as AWS for cloud. Deep regulatory complexity (RBI, NPCI, AA framework), high-stakes reliability, and a developer experience challenge on top. My background is production API infrastructure at scale: 245+ Lambda functions at UTEC, agentic AI at EY, telemedicine API at Vkonnect. At every point I've cared about API design quality and distributed systems correctness — Setu is the company in India where those two obsessions are the product. The AA gateway's intersection with ABDM health data is where I see the next frontier.",
+    "tags": ["behavioral", "motivation", "setu", "fintech"]
+  },
+  {
+    "id": "setu-041",
+    "company": "Setu",
+    "category": "Behavioral / STAR",
+    "difficulty": "Medium",
+    "question": "Tell me about a time you improved the reliability of a critical system.",
+    "answer": "UTEC notification pipeline: 3-5% messages silently dropped during peak hours, discovered only via support calls. Instrumented every Lambda consumer with structured logging + processed/failed metrics. Root cause: Lambda concurrency hit reserved limit (20), SQS messages timing out and eventually expiring. Short-term: raised concurrency to 100. Long-term: refactored to SQS batch processing (batchSize: 10) — 10x throughput with same concurrency footprint. Added DLQ alarm (PagerDuty within 60s). Result: silent drop rate → 0; DLQ alarm fired twice in 8 months, both caught within 2 minutes.",
+    "tags": ["behavioral", "star", "reliability", "sqs", "lambda", "utec"]
+  },
+  {
+    "id": "setu-042",
+    "company": "Setu",
+    "category": "Behavioral / STAR",
+    "difficulty": "Easy",
+    "question": "Describe a time you had to learn something quickly to meet a deadline.",
+    "answer": "EY Risk.ai: brought in mid-project to integrate GPT-4 into production Node.js backend, 3 weeks before a client demo. No production agentic AI experience. Approach: 3 days reading OpenAI function-calling docs, LangChain source code, and ReAct agent papers. Built a minimal TypeScript agent loop without LangChain to understand primitives. Identified hardest problem early (PDFs exceeding context window) → solved with chunking + RAG on OpenSearch. Daily notes to stay on track. Result: demo landed; two-tier model architecture became production standard; 200+ documents/day in production.",
+    "tags": ["behavioral", "star", "learning", "ey", "ai", "llm"]
+  },
+  {
+    "id": "setu-043",
+    "company": "Setu",
+    "category": "Behavioral / STAR",
+    "difficulty": "Medium",
+    "question": "How do you approach code reviews? Give an example of difficult feedback you gave or received.",
+    "answer": "Philosophy: correctness first, performance second, readability third. Don't nitpick style (linters handle that). Difficult feedback given at UTEC: junior engineer added feature flag by calling SSM Parameter Store on every request (50ms I/O per API call). Handled it in 4 steps: (1) acknowledged what was right (feature flag approach is correct); (2) explained the specific problem (latency + scale impact); (3) suggested the fix with a link to existing pattern (5-minute cache in module-level variable); (4) offered to pair. Engineer implemented it well; became a team teaching moment.",
+    "tags": ["behavioral", "star", "code-review", "mentoring", "collaboration"]
+  },
+  {
+    "id": "setu-044",
+    "company": "Setu",
+    "category": "Behavioral / STAR",
+    "difficulty": "Hard",
+    "question": "Tell me about a time you pushed back on a product requirement and were right.",
+    "answer": "UTEC: product wanted a 'retry failed payment' button that re-initiates payment with same reference ID. I flagged: if original payment succeeded but webhook failed, clicking retry charges the contractor twice. Backed it up with 3 historical cases where our webhook receiver had a 30s outage. Proposed alternative: call bank's transaction status API before allowing retry — confirm original actually failed before showing retry button. Estimated 1 extra day vs weeks of refund incidents. Product agreed. Result: detected 14 double-charge cases in 6 months, preventing all of them.",
+    "tags": ["behavioral", "star", "pushback", "idempotency", "payments", "utec"]
+  },
+  {
+    "id": "setu-045",
+    "company": "Setu",
+    "category": "Behavioral / STAR",
+    "difficulty": "Easy",
+    "question": "Where do you see yourself in 3 years?",
+    "answer": "The engineer junior engineers come to for hard distributed systems and API design problems — grounded in production experience, not theory. Deep working knowledge of the full India financial stack (UPI, AA, NACH, BBPS) and where it intersects with health data (consent-based sharing, insurance underwriting with health context). Staying technical, going deeper not broader. Concretely: contributing to the core Setu platform — shipping the next SDK version, solving the AA consent edge case blocking enterprise clients. Not rushing toward management; I want to keep doing hard engineering.",
+    "tags": ["behavioral", "career", "setu", "fintech"]
+  }
+]
