@@ -3,300 +3,25 @@
 > This is where senior engineers are separated from mid-level.
 > If you can implement these cleanly in an interview, you're in the top bracket.
 
----
-
-## 1. LRU Cache (Least Recently Used)
-
-**LeetCode 146 — Medium (but asked as Hard in interviews)**
-
-Design a data structure that follows LRU eviction: when the cache is full, remove the least recently used item.
-
-```javascript
-class LRUCache {
-    constructor(capacity) {
-        this.capacity = capacity;
-        this.cache = new Map(); // Map preserves insertion order
-    }
-    
-    get(key) {
-        if (!this.cache.has(key)) return -1;
-        
-        // Move to end (most recently used)
-        const value = this.cache.get(key);
-        this.cache.delete(key);
-        this.cache.set(key, value);
-        return value;
-    }
-    
-    put(key, value) {
-        // If key exists, delete first (to re-insert at end)
-        if (this.cache.has(key)) {
-            this.cache.delete(key);
-        }
-        
-        // If at capacity, evict least recently used (first item in Map)
-        if (this.cache.size >= this.capacity) {
-            const lruKey = this.cache.keys().next().value;
-            this.cache.delete(lruKey);
-        }
-        
-        this.cache.set(key, value);
-    }
-}
-
-// Test
-const cache = new LRUCache(2);
-cache.put(1, 'a');  // cache: {1: 'a'}
-cache.put(2, 'b');  // cache: {1: 'a', 2: 'b'}
-cache.get(1);       // returns 'a', cache: {2: 'b', 1: 'a'}
-cache.put(3, 'c');  // evicts key 2, cache: {1: 'a', 3: 'c'}
-cache.get(2);       // returns -1 (evicted)
-```
-
-### LRU Cache — Doubly Linked List + HashMap (Classic Interview Version)
-```javascript
-class Node {
-    constructor(key, value) {
-        this.key = key;
-        this.value = value;
-        this.prev = null;
-        this.next = null;
-    }
-}
-
-class LRUCacheClassic {
-    constructor(capacity) {
-        this.capacity = capacity;
-        this.map = new Map();
-        
-        // Dummy head and tail
-        this.head = new Node(0, 0);
-        this.tail = new Node(0, 0);
-        this.head.next = this.tail;
-        this.tail.prev = this.head;
-    }
-    
-    _remove(node) {
-        node.prev.next = node.next;
-        node.next.prev = node.prev;
-    }
-    
-    _addToFront(node) {
-        node.next = this.head.next;
-        node.prev = this.head;
-        this.head.next.prev = node;
-        this.head.next = node;
-    }
-    
-    get(key) {
-        if (!this.map.has(key)) return -1;
-        const node = this.map.get(key);
-        this._remove(node);
-        this._addToFront(node); // move to most recent
-        return node.value;
-    }
-    
-    put(key, value) {
-        if (this.map.has(key)) {
-            this._remove(this.map.get(key));
-        }
-        
-        const node = new Node(key, value);
-        this._addToFront(node);
-        this.map.set(key, node);
-        
-        if (this.map.size > this.capacity) {
-            const lru = this.tail.prev; // least recently used
-            this._remove(lru);
-            this.map.delete(lru.key);
-        }
-    }
-}
-// Time: O(1) for both get and put
-// Space: O(capacity)
-```
+> **Restructure note (2026-08-19):** LRU Cache, LFU Cache, and Trie have moved to [`16-DSA-Practice/design/`](../16-DSA-Practice/design/) as reference-solved machine-coding exercises — per `_meta/INVENTORY.md`'s misfiled-content finding, these are DSA/data-structure problems, not JS-language content, and `16-DSA-Practice/` is the repo's dedicated solved-problem layer. Design Twitter, URL Shortener, and Rate Limiter stay here — they're closer to system-design-flavored JS coding than pure DSA. Content unchanged from the source; only location changed for the three moved problems.
 
 ---
 
-## 2. LFU Cache (Least Frequently Used)
+## 1. LRU Cache → moved
 
-**LeetCode 460 — Hard**
-
-When cache is full, evict the least frequently used. If tie, evict least recently used among them.
-
-```javascript
-class LFUCache {
-    constructor(capacity) {
-        this.capacity = capacity;
-        this.minFreq = 0;
-        this.keyToVal = new Map();    // key → value
-        this.keyToFreq = new Map();   // key → frequency
-        this.freqToKeys = new Map();  // frequency → Set of keys (insertion ordered)
-    }
-    
-    _updateFreq(key) {
-        const freq = this.keyToFreq.get(key);
-        this.keyToFreq.set(key, freq + 1);
-        
-        // Remove from current frequency set
-        this.freqToKeys.get(freq).delete(key);
-        if (this.freqToKeys.get(freq).size === 0) {
-            this.freqToKeys.delete(freq);
-            if (this.minFreq === freq) this.minFreq++;
-        }
-        
-        // Add to new frequency set
-        if (!this.freqToKeys.has(freq + 1)) {
-            this.freqToKeys.set(freq + 1, new Set());
-        }
-        this.freqToKeys.get(freq + 1).add(key);
-    }
-    
-    get(key) {
-        if (!this.keyToVal.has(key)) return -1;
-        this._updateFreq(key);
-        return this.keyToVal.get(key);
-    }
-    
-    put(key, value) {
-        if (this.capacity === 0) return;
-        
-        if (this.keyToVal.has(key)) {
-            this.keyToVal.set(key, value);
-            this._updateFreq(key);
-            return;
-        }
-        
-        // Evict if at capacity
-        if (this.keyToVal.size >= this.capacity) {
-            const minFreqKeys = this.freqToKeys.get(this.minFreq);
-            const evictKey = minFreqKeys.values().next().value; // first = least recent
-            minFreqKeys.delete(evictKey);
-            if (minFreqKeys.size === 0) this.freqToKeys.delete(this.minFreq);
-            this.keyToVal.delete(evictKey);
-            this.keyToFreq.delete(evictKey);
-        }
-        
-        // Insert new key
-        this.keyToVal.set(key, value);
-        this.keyToFreq.set(key, 1);
-        if (!this.freqToKeys.has(1)) this.freqToKeys.set(1, new Set());
-        this.freqToKeys.get(1).add(key);
-        this.minFreq = 1;
-    }
-}
-
-// Test
-const lfu = new LFUCache(2);
-lfu.put(1, 'a');    // freq(1)=1
-lfu.put(2, 'b');    // freq(2)=1
-lfu.get(1);         // freq(1)=2, returns 'a'
-lfu.put(3, 'c');    // evicts key 2 (freq=1, least recently used at freq=1)
-lfu.get(2);         // returns -1 (evicted)
-```
+Full content, unchanged: [`16-DSA-Practice/design/lru-cache.js`](../16-DSA-Practice/design/lru-cache.js) (both the quick Map-only version and the classic DLL+HashMap version).
 
 ---
 
-## 3. Trie (Prefix Tree) Implementation
+## 2. LFU Cache → moved
 
-**LeetCode 208 — Medium**
+Full content, unchanged: [`16-DSA-Practice/design/lfu-cache.js`](../16-DSA-Practice/design/lfu-cache.js).
 
-```javascript
-class TrieNode {
-    constructor() {
-        this.children = {};      // char → TrieNode
-        this.isEndOfWord = false;
-    }
-}
+---
 
-class Trie {
-    constructor() {
-        this.root = new TrieNode();
-    }
-    
-    insert(word) {
-        let node = this.root;
-        for (const char of word) {
-            if (!node.children[char]) {
-                node.children[char] = new TrieNode();
-            }
-            node = node.children[char];
-        }
-        node.isEndOfWord = true;
-    }
-    
-    search(word) {
-        const node = this._findNode(word);
-        return node !== null && node.isEndOfWord;
-    }
-    
-    startsWith(prefix) {
-        return this._findNode(prefix) !== null;
-    }
-    
-    _findNode(str) {
-        let node = this.root;
-        for (const char of str) {
-            if (!node.children[char]) return null;
-            node = node.children[char];
-        }
-        return node;
-    }
-    
-    // Bonus: autocomplete (return all words with given prefix)
-    autocomplete(prefix) {
-        const node = this._findNode(prefix);
-        if (!node) return [];
-        
-        const results = [];
-        this._dfs(node, prefix, results);
-        return results;
-    }
-    
-    _dfs(node, current, results) {
-        if (node.isEndOfWord) results.push(current);
-        for (const [char, child] of Object.entries(node.children)) {
-            this._dfs(child, current + char, results);
-        }
-    }
-    
-    // Bonus: Delete word
-    delete(word) {
-        this._deleteHelper(this.root, word, 0);
-    }
-    
-    _deleteHelper(node, word, index) {
-        if (index === word.length) {
-            if (!node.isEndOfWord) return false;
-            node.isEndOfWord = false;
-            return Object.keys(node.children).length === 0;
-        }
-        
-        const char = word[index];
-        if (!node.children[char]) return false;
-        
-        const shouldDeleteChild = this._deleteHelper(node.children[char], word, index + 1);
-        if (shouldDeleteChild) {
-            delete node.children[char];
-            return !node.isEndOfWord && Object.keys(node.children).length === 0;
-        }
-        return false;
-    }
-}
+## 3. Trie (Prefix Tree) → moved
 
-// Test
-const trie = new Trie();
-trie.insert('apple');
-trie.insert('app');
-trie.insert('application');
-trie.insert('banana');
-
-console.log(trie.search('apple'));        // true
-console.log(trie.search('app'));          // true
-console.log(trie.search('ap'));           // false
-console.log(trie.startsWith('app'));      // true
-console.log(trie.autocomplete('app'));    // ['app', 'apple', 'application']
-```
+Full content, unchanged: [`16-DSA-Practice/design/trie.js`](../16-DSA-Practice/design/trie.js) — includes `delete()`, which the theory-layer Trie in [`08-DSA/07-trees.md`](../08-DSA/07-trees.md) doesn't have.
 
 ---
 
@@ -481,19 +206,19 @@ function rateLimitMiddleware(req, res, next) {
 
 ## Complexity Summary
 
-| Problem | get/put | Space | Key Insight |
-|---|---|---|---|
-| LRU Cache | O(1) | O(n) | Doubly linked list + HashMap |
-| LFU Cache | O(1) | O(n) | 3 Maps: key→val, key→freq, freq→keys |
-| Trie | O(L) per op | O(N×L) | Children map at each node |
-| Twitter Feed | O(n log n) | O(n) | Merge k sorted lists for scale |
-| URL Shortener | O(1) | O(n) | Base62 encoding + counter |
-| Rate Limiter | O(1) amortized | O(n) | Token bucket or sliding window |
+| Problem | get/put | Space | Key Insight | Where |
+|---|---|---|---|---|
+| LRU Cache | O(1) | O(n) | Doubly linked list + HashMap | [`16-DSA-Practice/design/lru-cache.js`](../16-DSA-Practice/design/lru-cache.js) |
+| LFU Cache | O(1) | O(n) | 3 Maps: key→val, key→freq, freq→keys | [`16-DSA-Practice/design/lfu-cache.js`](../16-DSA-Practice/design/lfu-cache.js) |
+| Trie | O(L) per op | O(N×L) | Children map at each node | [`16-DSA-Practice/design/trie.js`](../16-DSA-Practice/design/trie.js) |
+| Twitter Feed | O(n log n) | O(n) | Merge k sorted lists for scale | This file, §4 |
+| URL Shortener | O(1) | O(n) | Base62 encoding + counter | This file, §5 |
+| Rate Limiter | O(1) amortized | O(n) | Token bucket or sliding window | This file, §6 |
 
 ## Practice Checklist
-- [ ] LRU Cache (Map version + DLL version)
-- [ ] LFU Cache
-- [ ] Trie with insert, search, startsWith, autocomplete
+- [ ] LRU Cache (Map version + DLL version) — now in `16-DSA-Practice/design/`
+- [ ] LFU Cache — now in `16-DSA-Practice/design/`
+- [ ] Trie with insert, search, startsWith, autocomplete, delete — now in `16-DSA-Practice/design/`
 - [ ] Design Twitter (basic + discuss scaling)
 - [ ] URL Shortener (encode/decode)
 - [ ] Rate Limiter (token bucket + sliding window)
