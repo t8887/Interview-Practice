@@ -13,3 +13,7 @@ package-lock.json
 
 # Misc
 *.log
+
+# Privacy — personal/negotiation data, never tracked (see _meta/INVENTORY.md Privacy flags)
+*.pdf
+13-Salary-Negotiation/salary-negotiation-mastery.md
