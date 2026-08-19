@@ -1,7 +1,7 @@
 # Senior Full-Stack & Cloud Engineer — Interview Preparation Hub
 
 > **Owner:** Onkar Sawant · Full-Stack + Backend + Cloud + Agentic AI Engineer  
-> **Goal:** Interview-ready in 30 days — targeting Senior/L2 Full-Stack roles at MNCs and product companies  
+> **Goal:** Senior/L2 Full-Stack readiness at MNCs (active pipeline) building toward a Google-tier SDE-2/Senior bar (Track B) — see `_meta/MASTER_ROADMAP.md` for the phased plan  
 > **Stack:** JavaScript · TypeScript · Node.js · React · Redux · SQL/MongoDB · System Design · AWS · Agentic AI · DSA
 
 ---
@@ -11,7 +11,7 @@
 This is a structured, production-quality interview preparation system — not a random collection of notes. Every folder follows a deliberate learning sequence: language fundamentals → data layer →
 architecture → cloud → AI. Each topic includes deep-dive theory, MNC-sourced interview questions (from Glassdoor, AmbitionBox, LeetCode Discuss), coding patterns, and decision-making frameworks.
 
-The repository is actively maintained and directly tied to a 30-day preparation sprint tracked in [`TRACKING.md`](TRACKING.md).
+The repository runs on a Claude Code prep-system (`.claude/commands/`) that tracks real state in `_meta/state.json` and `_meta/PRODUCT_COMPANY_READINESS.md` rather than a fixed-date sprint — see [`TRACKING.md`](TRACKING.md) for the rolling weekly log, or run `/prep-status` for a dashboard.
 
 ---
 
@@ -27,16 +27,25 @@ The repository is actively maintained and directly tied to a 30-day preparation 
 ├── 06-SQL-MySQL-MongoDB/       ← Joins, Indexing, Transactions, Aggregation, MNC Qs
 ├── 07-System-Design/           ← Auth, Caching, Queues, Scaling, Architecture, MNC Qs
 │   └── in-depth/               ← Networking, Scalability, Databases, Caching deep dives
-├── 08-DSA/                     ← 75 problems across 10 patterns, MNC Qs
+├── 08-DSA/                     ← 15 pattern files (10 original + 5 split out of 01-JavaScript/03), MNC Qs — 0 problems logged solved so far, see 16-DSA-Practice/LOG.md
 ├── 09-Agentic-AI/              ← Agents, RAG, Tool Calling, Frameworks, MNC Qs
 ├── 10-Interview-Prep/          ← Behavioral, STAR stories, Layoff script
-├── 11-AI-Risk-Assistant-Project/ ← Portfolio project: full-stack AI compliance tool
-├── 12-Company/                 ← Company-specific prep (Capgemini, Infosys, Deloitte, etc.)
-├── 13-Salary-Negotiation/      ← Negotiation handbook: anchoring, scripts, tactics
-├── 14-Design-Patterns/         ← SOLID, DRY/KISS/YAGNI, Creational patterns
-├── 15-AWS-Services/            ← 35 AWS services: deep-dive notes + cheatsheet
-└── TRACKING.md                 ← 30-day sprint tracker with 173 tasks
+├── 11-AI-Risk-Assistant-Project/ ← Portfolio project: full-stack AI compliance tool (scaffold — not yet built)
+├── 12-Company/                 ← Company-specific prep (20+ companies)
+├── 13-Salary-Negotiation/      ← Negotiation handbook: anchoring, scripts, tactics (gitignored — see .gitignore)
+├── 14-Design-Patterns/         ← SOLID, DRY/KISS/YAGNI, Creational patterns (2 of 10 planned categories complete — see todo.md)
+├── 15-AWS-Services/            ← 34 AWS services: deep-dive notes + cheatsheet
+├── 16-DSA-Practice/            ← Solved-problem layer (attempt → optimal → complexity → redo-date), distinct from 08-DSA/'s notes
+├── 17-CS-Fundamentals/         ← os/, networking/, database-internals/ — OS is a confirmed 0/5 gap
+├── 18-LLD-Machine-Coding/      ← Parking Lot, BookMyShow, Splitwise, Elevator, Rate Limiter (class design)
+├── 19-Distributed-Systems/     ← CAP/PACELC, idempotency, saga/outbox, distributed locks, clocks
+├── 20-Redis-OpenSearch/        ← redis/, opensearch/ — including the migration-story defense write-up
+├── 21-Mock-Interviews/         ← Logged mocks with a communication/approach/correctness/complexity/edge-cases rubric
+├── 22-Revision/                ← Spaced-repetition queue (D1/D3/D7/D21)
+└── TRACKING.md                 ← Rolling weekly log (rewritten 2026-08-19 — see _meta/MASTER_ROADMAP.md for the actual plan)
 ```
+
+> **Progress and gap analysis live in `_meta/`, not in this tree.** For the current phase, skill scores, and priority-ordered next actions, see `_meta/MASTER_ROADMAP.md`, `_meta/PRODUCT_COMPANY_READINESS.md`, and `_meta/state.json` — or run `/prep-status`.
 
 ---
 
@@ -50,11 +59,11 @@ The hardest filter at Razorpay, Swiggy, Flipkart, and Cred — companies that li
 
 | File                                | What's Inside                                                                                                                            |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `01-closures-promises-polyfills.md` | Counter, once, memoize, curry, pipe, Promise.all/race/allSettled, debounce, throttle, deep clone, flatten, bind/call/apply, EventEmitter |
-| `02-advanced-senior-level.md`       | LRU Cache (Map + DLL), LFU Cache, Trie + autocomplete, Design Twitter, URL Shortener, Rate Limiter (token bucket + sliding window)       |
-| `03-pattern-based-must-know.md`     | Kadane's, Floyd's Cycle Detection, Binary Search variants, Prefix Sum, Monotonic Stack, Backtracking template                            |
+| `01-closures-promises-polyfills.md` | Counter, once, memoize, curry, pipe, Promise.all/race/allSettled, debounce, throttle, deep clone, flatten, bind/call/apply, EventEmitter (canonical home — other files link here) |
+| `02-advanced-senior-level.md`       | Design Twitter, URL Shortener, Rate Limiter (token bucket + sliding window). LRU Cache/LFU Cache/Trie moved to `16-DSA-Practice/design/` during `/prep-restructure`. |
+| `03-pattern-based-must-know.md`     | Kadane's, Floyd's Cycle Detection (kept here) + links to Binary Search Variants/Prefix Sum/Monotonic Stack/Backtracking, moved to `08-DSA/12-15` during `/prep-restructure` |
 | `04-mnc-frequently-asked.md`        | 40 MNC Qs — output-based, closures, promises, `this`, prototypes, event loop, polyfills, ES6+, currying                                  |
-| `05-answers.md`                     | Worked answers to the MNC question set                                                                                                   |
+| `06-answers.md`                     | Worked answers to the MNC question set + `05-tricky-output-puzzles.md` (renumbered from `05-answers.md` to fix a double-`05` collision) |
 | `05-tricky-output-puzzles.md`       | Output prediction exercises (closure trap, async ordering, prototype chain)                                                              |
 | `Practice/`                         | Hands-on coding scratch files                                                                                                            |
 
@@ -164,24 +173,24 @@ The hardest filter at Razorpay, Swiggy, Flipkart, and Cred — companies that li
 
 ### 08 — DSA
 
-**Files:** 11 · **Target:** 75+ problems across 10 patterns
+**Files:** 15 (10 original + 4 split out of `01-JavaScript/03-pattern-based-must-know.md` during `/prep-restructure`) · Note in every one of these files: solutions are *shown*, not yet *solved-by-you* — see `16-DSA-Practice/LOG.md` for the actual count that matters.
 
-| File                         | Pattern                               | Problems  |
-| ---------------------------- | ------------------------------------- | --------- |
-| `01-arrays-strings.md`       | Traversal, prefix, two-pass           | 10        |
-| `02-hash-maps.md`            | Frequency counting, grouping          | 8         |
-| `03-two-pointers.md`         | Opposite ends, same direction         | 8         |
-| `04-stack-queue.md`          | Monotonic stack, deque                | 8         |
-| `05-sliding-window.md`       | Fixed/variable window                 | 6         |
-| `06-linked-list.md`          | Reverse, cycle, merge                 | 8         |
-| `07-trees.md`                | Traversals, BST, Trie                 | 10        |
-| `08-graphs.md`               | BFS/DFS, topological, union-find      | 8         |
-| `09-dynamic-programming.md`  | 1D/2D DP, knapsack variants           | 10        |
-| `10-binary-search.md`        | Template, rotated array, answer-space | 7         |
-| `11-mnc-frequently-asked.md` | Top problems, pattern recognition     | 22 MNC Qs |
+| File                          | Pattern                                                                                    |
+| ------------------------------ | ------------------------------------------------------------------------------------------- |
+| `01-arrays-strings.md`        | Traversal, prefix, two-pass                                                                 |
+| `02-hash-maps.md`             | Frequency counting, grouping                                                                |
+| `03-two-pointers.md`          | Opposite ends, same direction                                                                |
+| `04-stack-queue.md`           | Monotonic stack, deque                                                                       |
+| `05-sliding-window.md`        | Fixed/variable window                                                                        |
+| `06-linked-list.md`           | Reverse, cycle, merge, LRU Cache (canonical — see also `16-DSA-Practice/design/`)             |
+| `07-trees.md`                 | Traversals, BST, Trie                                                                        |
+| `08-graphs.md`                | BFS/DFS, topological, union-find (Dijkstra still a gap — see `_meta/KNOWLEDGE_GRAPH.md`)      |
+| `09-dynamic-programming.md`   | 1D/2D DP, knapsack variants                                                                  |
+| `10-binary-search.md`         | Template, rotated array, answer-space                                                       |
+| `11-mnc-frequently-asked.md`  | Top problems, pattern recognition (22 Qs)                                                    |
+| `12-15` (prefix-sum, monotonic-stack, backtracking, binary-search-variants) | Migrated from `01-JavaScript/03` — see those files for noted overlaps with `04`/`10` |
 
-**Difficulty split:** ~50% Medium, ~10% Hard, ~40% Easy  
-**Target companies:** Capgemini, Infosys, Deloitte, TCS, Encora, CitiusTech
+**Still missing (❌ per `_meta/KNOWLEDGE_GRAPH.md`):** Heap/Priority Queue, Intervals, Greedy, Bit Manipulation.
 
 ---
 
@@ -230,7 +239,7 @@ React + TypeScript (Dashboard)
 
 ### 12 — Company-Specific Prep
 
-**Files:** 8 · **Coverage:** Tailored guides per company
+**Files:** 20+ (this table lists a representative subset — the folder grew past 8 without this table being kept current; a full, accurate listing needs a fresh `12-Company/INDEX.md` pass, out of scope for this restructure) · **Coverage:** Tailored guides per company
 
 | File                                  | Company            | Round Level                             |
 | ------------------------------------- | ------------------ | --------------------------------------- |
@@ -291,24 +300,17 @@ Lambda · API Gateway · DynamoDB · S3 · IAM · SQS · RDS/Aurora · VPC · Cl
 
 ## Progress Snapshot
 
-| Phase                  |  Topics |   Done |        % |
-| ---------------------- | ------: | -----: | -------: |
-| JavaScript             |       3 |      3 |     100% |
-| Node.js                |       5 |      5 |     100% |
-| React                  |       5 |      5 |     100% |
-| System Design in Depth |       9 |      9 |     100% |
-| Company Prep           |       5 |      5 |     100% |
-| Salary Negotiation     |       1 |      1 |     100% |
-| TypeScript             |       5 |      0 |       0% |
-| Redux                  |       4 |      0 |       0% |
-| SQL / MongoDB          |       5 |      0 |       0% |
-| DSA Problems           |      75 |      0 |       0% |
-| Agentic AI             |       2 |      0 |       0% |
-| AI Project Build       |       5 |      0 |       0% |
-| Mock Interviews        |       5 |      0 |       0% |
-| **TOTAL**              | **173** | **28** | **~16%** |
+This table was a fixed 173-task count tied to the expired 30-day sprint (`_meta/imported/01_REPOSITORY_ANALYSIS.md` flagged it as self-contradictory — e.g. it showed TypeScript at 0% despite 6 Advanced/Expert-rated files already existing). Real, evidence-cited progress now lives in `_meta/PRODUCT_COMPANY_READINESS.md` (0–5 score per skill, every score backed by a cited file) and `_meta/state.json` (machine-readable phase/count state). Snapshot as of this restructure:
 
-Full task-level tracking → [`TRACKING.md`](TRACKING.md)
+| Signal | Where | Current state |
+| --- | --- | --- |
+| Files deep-analyzed | `_meta/state.json` | 100 / 100 |
+| DSA problems solved & logged | `16-DSA-Practice/LOG.md` | 0 |
+| Design-Patterns categories complete | `14-Design-Patterns/todo.md` | 2 / 10 |
+| Mock interviews logged | `21-Mock-Interviews/` | 0 |
+| Current roadmap phase | `_meta/MASTER_ROADMAP.md` | Phase 0 (Repository Cleanup, Safety & Correctness Debt) |
+
+Run `/prep-status` for the live dashboard version of this table.
 
 ---
 
@@ -332,4 +334,4 @@ Full task-level tracking → [`TRACKING.md`](TRACKING.md)
 
 ## Resume
 
-[`OnkarSawant-FullStack-Developer-5+Years.pdf`](OnkarSawant-FullStack-Developer-5+Years.pdf) — available in the root of this repository.
+Kept locally in the repo root, no longer tracked in git (untracked during `/prep-restructure` 2026-08-19, per `_meta/INVENTORY.md`'s privacy flags — a PII PDF has no reason to be in version-control history on a repo that may be shared). Ask the owner directly rather than expecting a link here.
