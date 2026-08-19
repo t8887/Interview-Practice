@@ -1,3 +1,11 @@
+---
+topic: Senior-Level Design Coding (Twitter, URL Shortener, Rate Limiter)
+level: advanced
+status: solid
+last_reviewed: 2026-08-19
+next_review: 2026-08-20
+---
+
 # Advanced / Senior Level — 20 LPA+ Filter Problems
 
 > This is where senior engineers are separated from mid-level.
@@ -222,3 +230,29 @@ function rateLimitMiddleware(req, res, next) {
 - [ ] Design Twitter (basic + discuss scaling)
 - [ ] URL Shortener (encode/decode)
 - [ ] Rate Limiter (token bucket + sliding window)
+
+## Prerequisites
+[`01-closures-promises-polyfills.md`](./01-closures-promises-polyfills.md) (Map/Set semantics, closures over private state — used throughout Twitter/URL-Shortener/Rate-Limiter below).
+
+## Related
+[`16-DSA-Practice/design/`](../16-DSA-Practice/design/) (LRU/LFU/Trie, moved here during `/prep-restructure`). [`07-System-Design/in-depth/08-classic-design-problems.md`](../07-System-Design/in-depth/08-classic-design-problems.md) (the fully-worked, production-shaped versions of Twitter feed and URL shortener — this file's versions are the "write it in 20 minutes" coding-round shape, that file's are the "design it for scale" system-design shape; not duplicates, complementary depths). [`07-System-Design/in-depth/07-reliability-and-availability.md`](../07-System-Design/in-depth/07-reliability-and-availability.md) (a real token-bucket class, matching this file's rate limiter).
+
+## Interview Questions (hardest first)
+1. Design Twitter's `getNewsFeed`: this file's version is O(n log n) per call over ALL tweets — what breaks at 10M tweets, and how does fan-out-on-write fix it? (Named in a comment here, not implemented — be ready to actually sketch it.)
+2. Why does the URL Shortener use Base62 encoding of an incrementing counter instead of a random hash? What information does an incrementing ID leak?
+3. Token Bucket vs. Sliding Window rate limiting — implement both from memory, then explain which one allows controlled bursts and why that matters for API design.
+4. Extend the Rate Limiter to work correctly across multiple server instances — what breaks about the in-memory `Map` version at scale, and what's the minimal fix?
+5. Add a `delete(key)` method to the LFU cache design (currently `16-DSA-Practice/design/lfu-cache.js` only has get/put) — what does eviction bookkeeping need to update?
+
+## Exercises
+1. Actually implement the fan-out-on-write / merge-k-sorted-lists optimization referenced only in a comment in `getNewsFeed` (line ~342-346 before this restructure).
+2. Wire the Rate Limiter's `SlidingWindowRateLimiter` into a real Express app as middleware (partially shown here) and load-test it locally.
+3. Compare this file's `URLShortener._encode` against the (now-fixed) `crypto.randomBytes`-based generator in `07-System-Design/03-architecture-scenarios.md` — explain why that file's original version crashed and this one doesn't.
+
+## My Real-World Usage
+The Rate Limiter (token bucket + sliding window) is the same conceptual pattern behind every API-Gateway-level throttling decision in the UTEC and EY Risk.ai stories — "why token bucket over fixed window" is a direct, rehearsable follow-up from either project story.
+
+## Common Mistakes
+- Building `getNewsFeed` as a full re-scan-and-sort of all tweets (this file's own baseline version) and not being ready to discuss why that doesn't scale.
+- Confusing token bucket (allows bursts, refills continuously) with fixed-window counting (resets hard at window boundaries, allows 2x burst at the boundary) — a mix-up flagged as a real bug elsewhere in this repo (`07-System-Design/in-depth/08-classic-design-problems.md`'s "Token Bucket" was actually a fixed-window counter, fixed during `/prep-restructure`).
+- Using an auto-incrementing ID directly as a short code (leaks total-URL-count information) instead of encoding it.

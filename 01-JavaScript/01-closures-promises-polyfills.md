@@ -1,3 +1,11 @@
+---
+topic: Closures, Promises & Polyfills
+level: advanced
+status: solid
+last_reviewed: 2026-08-19
+next_review: 2026-08-20
+---
+
 # JS-Specific Puzzles — Gold for Frontend + Fullstack Interviews
 
 > These are asked at Razorpay, Swiggy, Flipkart, Meesho, Cred, Atlassian, etc.
@@ -636,3 +644,30 @@ emitter.emit('message', 'test'); // nothing (removed)
 - [ ] Implement bind
 - [ ] Implement call/apply
 - [ ] Event emitter class
+
+## Prerequisites
+None — this is the canonical, foundational JS file for this whole cluster (`_meta/REPOSITORY_ANALYSIS.md`: "designate as the canonical version of this whole cluster — other files should link here instead of re-pasting").
+
+## Related
+[`01-JavaScript/02-advanced-senior-level.md`](./02-advanced-senior-level.md) (LRU/LFU/Trie moved out to `16-DSA-Practice/design/`, but Twitter/URL-Shortener/Rate-Limiter here build on this file's Promise/closure fundamentals). [`04-mnc-frequently-asked.md`](./04-mnc-frequently-asked.md) (Q17/Q23-25/Q35-37 duplicate this file's polyfills — should link here rather than re-implement, per `/prep-analyze`'s finding). [`06-answers.md`](./06-answers.md) Problem 86 (a **regressed**, weaker `deepClone` missing the circular-ref guard this file's version has — fixed during `/prep-restructure` Phase 0; if you ever see the two disagree again, this file is the one to trust).
+
+## Interview Questions (hardest first)
+1. Implement `Promise.all`, `Promise.race`, and `Promise.allSettled` from scratch, then explain the one-line difference in how each handles the first rejection.
+2. Implement `bind` from scratch — then show it's wrong: construct `new BoundFn()` and explain why a naive polyfill ignores the bound `this` when invoked as a constructor.
+3. Implement `deepClone` with circular-reference support using `WeakMap` — explain why a `Set` alone isn't enough (hint: you need to map old references to new ones, not just detect repeats).
+4. Implement `curry` supporting infinite arity via `valueOf` — explain the JS coercion mechanism that makes this work.
+5. Implement `debounce` and `throttle` from memory, then add `.cancel()`/`.flush()` to debounce live.
+6. Why does `Promise.any` behave differently from `Promise.race` when *all* promises reject? (Trick: this repo has never implemented `Promise.any` anywhere — a live gap you'd need to fill on the spot.)
+
+## Exercises
+1. Add `new`-operator safety to `myBind`: verify `new BoundFoo(5).x === 5` and `instanceof Foo` both hold, then fix the current implementation which gets this wrong.
+2. Extend `debounce` with `.cancel()` and `.flush()` methods.
+3. Implement `Promise.any` (resolves on first fulfillment, rejects with `AggregateError` if all reject) — named in `04-mnc-frequently-asked.md`'s combinator table but implemented nowhere in the repo.
+
+## My Real-World Usage
+The retry-with-exponential-backoff polyfill here is the direct ancestor of every domain-specific retry pattern in this repo — the SQS/Lambda retry logic in the UTEC story, the LLM-API 429 handling in `09-Agentic-AI/02-frameworks-production.md`, and the payment-retry logic across the `12-Company/` fintech-adjacent files (`recro-cheq-nodejs-prep.md`, `setu-health/`) all specialize this same base pattern.
+
+## Common Mistakes
+- Writing `bind` without constructor-call safety — a confirmed, real gap in this file's own `myBind` (flagged during `/prep-analyze`, not yet fixed as of this restructure).
+- Writing `deepClone` without a circular-reference guard — this file gets it right (`WeakMap`, tested against a self-referencing object); the answer-key copy in `06-answers.md` didn't, until Phase 0 fixed it.
+- Implementing `debounce`/`throttle` without the leading/trailing distinction, then being unable to answer "what if I need the leading call too?" live.

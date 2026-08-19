@@ -1,3 +1,11 @@
+---
+topic: Factory Pattern
+level: expert
+status: solid
+last_reviewed: 2026-08-19
+next_review: 2026-08-20
+---
+
 Factory Pattern
 
 1. Definition
@@ -107,4 +115,30 @@ Node.js + DI tip
 
 When NOT to use
 - For trivial object creation that doesn't change or when a DI container already manages lifecycles.
+
+## Prerequisites
+[`fundamentals/solid-principles.md`](../../fundamentals/solid-principles.md) (Dependency Inversion — factories are one of the standard mechanisms for depending on abstractions, not concretions).
+
+## Related
+[`creational/singleton/README.md`](../singleton/README.md) (this repo's other Expert-rated pattern page — same 20-section template, use both as the depth bar for every future pattern file). `structural/`, `behavioral/` (❌ not yet created — see `14-Design-Patterns/todo.md`).
+
+## Interview Questions (hardest first)
+1. Factory vs. DI container — what's the actual difference in scope? (This file's own trick question — give the model answer from memory, not by re-reading it.)
+2. When does a factory become a god object? Where's the line between "centralizes creation logic" (good) and "encodes too much business logic" (this file's own named common mistake)?
+3. Extend this file's typed TypeScript registry factory to support *async* factories (a provider that must authenticate before use) — how does that change the calling contract for every consumer?
+4. Contrast Factory with Abstract Factory — this file names Abstract Factory as a related pattern but doesn't implement it (still ❌ in `14-Design-Patterns/creational/`). Sketch what an Abstract Factory version of the storage-provider example would look like.
+5. How do you test code that depends on a factory-created instance, without hitting real infrastructure?
+
+## Exercises
+1. Implement an Abstract Factory (e.g., a themed UI-kit factory producing matching `Button`+`Checkbox` for light/dark themes) and explicitly contrast it with this file's simple Factory.
+2. Add 2 more interview trick questions with model answers (god-object risk, testing factory-created instances) — this file currently has only one.
+3. Extend the TypeScript registry factory to support async factories and discuss how that changes the calling contract.
+
+## My Real-World Usage
+The provider-selection factory pattern here (S3 vs. local storage, selected by `process.env.STORE`) is the same shape as choosing between a mock and a real payment gateway, S3 vs. Azure Blob (P&G Olay migration context), or DynamoDB vs. a local test double across the UTEC/Vkonnect stack.
+
+## Common Mistakes
+- Encoding business logic (not just object-selection logic) inside the factory function — the file's own named anti-pattern.
+- Using a long `switch`/`if-else` chain on a type string instead of a config-driven registry map (this file's own "Anti-pattern comparison" section names this explicitly).
+- Reaching for a full DI container when a 5-line factory function would do — over-engineering in the opposite direction from the god-object risk.
 

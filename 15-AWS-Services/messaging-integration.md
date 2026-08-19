@@ -1,3 +1,11 @@
+---
+topic: Messaging & Integration (SQS, SNS, EventBridge, Step Functions, Kinesis)
+level: expert
+status: solid
+last_reviewed: 2026-08-19
+next_review: 2026-08-20
+---
+
 # Messaging & Integration
 
 ---
@@ -104,3 +112,29 @@
   - Each shard supports 5 read transactions/second — enhanced fan-out is needed for multiple high-throughput consumers.
 - **Recency:** Fundamentals stable; no recent change that affects interviews.
 - **Map to my projects:** _(leave blank)_
+
+## Prerequisites
+[`15-AWS-Services/00-cheatsheet.md`](./00-cheatsheet.md) (one-liner orientation before this file's depth).
+
+## Related
+[`07-System-Design/in-depth/06-message-queues.md`](../07-System-Design/in-depth/06-message-queues.md) (the vendor-agnostic queue-theory counterpart — Kafka/RabbitMQ patterns vs. this file's AWS-API-specific mechanics; complementary, not duplicative). `19-Distributed-Systems/03-idempotency.md` (❌ not yet created — the DLQ-retry idempotency requirement this file names in its SQS gotchas connects directly to that planned file).
+
+## Interview Questions (hardest first)
+1. Design a system handling 100K events/second — why does EventBridge alone not suffice at that scale, and what does Kinesis add that SQS/SNS don't have?
+2. Explain the SNS fan-out pattern end-to-end: one `order.created` event → 2+ independent SQS subscriber queues. What happens if one subscriber's queue is down?
+3. Standard vs. Express Step Functions workflows — which would you use for a payment saga with compensating transactions, and why does the choice depend on the 5-minute execution limit?
+4. A Kinesis shard is "hot" — what caused it, and what's the fix that doesn't involve just adding more shards?
+5. Explain why an SQS Standard queue consumer MUST be idempotent, using the visibility-timeout mechanism to justify the answer, not just "because AWS says so."
+
+## Exercises
+1. Add a subsection defining `SendMessageBatch`/`SendMessageBatchRequestEntry` and its cost/throughput implications — referenced twice in this file, never defined.
+2. Once `07-System-Design/in-depth/06-message-queues.md` is re-read, add explicit cross-links between the vendor-agnostic patterns there and this file's AWS-specific mechanics.
+3. Write a worked Saga-pattern Step Functions state machine (states + Catch/Retry + a compensating-transaction branch) — currently only described in prose here.
+
+## My Real-World Usage
+This is the single highest direct match to `CLAUDE.md`'s named AWS stack (SQS/SNS/EventBridge) of any file in the repo — the UTEC notification engine's fan-out design and the Vkonnect Lambda migration both map directly onto the SQS/SNS sections above; "Map to my projects" is blank in every section and should be filled with those two stories specifically.
+
+## Common Mistakes
+- Assuming SQS Standard delivers exactly-once (it's at-least-once — consumers must be idempotent).
+- Confusing SNS (no persistence — a message is lost if delivery fails permanently with no DLQ configured) with SQS (persistent, durable queue).
+- Picking EventBridge for pure fan-out when SNS is simpler and cheaper for that specific case — EventBridge earns its complexity when routing is content-based, not just "many subscribers."

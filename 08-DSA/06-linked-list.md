@@ -1,3 +1,11 @@
+---
+topic: Linked List
+level: advanced
+status: solid
+last_reviewed: 2026-08-19
+next_review: 2026-08-20
+---
+
 # Linked List — Deep Dive
 
 ## Core Concepts
@@ -243,3 +251,29 @@ class LRUCache {
 - "Floyd's algorithm works because in a cycle, fast gains one step per iteration — they must meet"
 - "LRU Cache: HashMap gives O(1) lookup, doubly linked list gives O(1) removal and insertion"
 - "For merge K lists, divide and conquer gives O(N log k) vs O(Nk) for sequential merge"
+
+## Prerequisites
+[`03-two-pointers.md`](./03-two-pointers.md) (slow/fast pointer mechanics, used throughout this file's Floyd's-cycle content).
+
+## Related
+[`16-DSA-Practice/design/lru-cache.js`](../16-DSA-Practice/design/lru-cache.js) — this file's LRU Cache is the canonical, correctly-implemented O(1) version (confirmed during `/prep-analyze`); the practice-layer copy is a reference-solved exercise, not a separate implementation. **Contrast with the confirmed-buggy versions elsewhere in the repo:** `07-System-Design/in-depth/04-caching.md`'s hand-rolled LRU was O(n) (fixed during `/prep-restructure` Phase 0) and `12-Company/persistent-aws-backend-developer.md`'s LRU had a `get()` that deleted before reading (also fixed) — if you see a third LRU implementation anywhere in this repo that disagrees with this file, this file is the one to trust. Also: `08-DSA/15-binary-search-variants.md` (Median of Two Sorted Arrays uses a similar two-pointer-on-linked-structure mental model).
+
+## Interview Questions (hardest first)
+1. Derive algebraically why Floyd's slow/fast pointers must meet inside a cycle, and why resetting one pointer to head then advancing both by 1 finds the cycle start. (This file's own `_meta/REPOSITORY_ANALYSIS.md` entry flags that the file *asserts* this without proof — be ready to derive it live.)
+2. Why does Merge K Sorted Lists via divide-and-conquer achieve O(N log k) instead of O(Nk)? Walk through the log k merge levels.
+3. Implement Copy List with Random Pointer two ways — O(n) space (HashMap) and O(1) extra space (interleaved-node trick) — and explain the trade-off out loud.
+4. Extend the LRU Cache into an LFU Cache (see `16-DSA-Practice/design/lfu-cache.js`) — what's the extra bookkeeping LFU needs that LRU doesn't?
+5. Why does this file's LRU Cache use a dummy head *and* tail node instead of just a head?
+
+## Exercises
+1. Prove Floyd's meeting-point math on paper before checking any reference — this file states the result, not the derivation.
+2. Implement Copy List with Random Pointer both ways (named in this file's own problems table, row 8, with zero code above it).
+3. Add TTL-based expiry to the LRU Cache (evict on capacity AND age) — a standard follow-up interviewers ask after the base implementation.
+
+## My Real-World Usage
+The LRU Cache pattern here is the same underlying data structure reasoning behind Redis's `allkeys-lru` eviction policy, which shows up in the UTEC caching layer story (`12-Company/recro-cheq-nodejs-prep.md` §6-Q17 has the fuller production version — per-instance eviction-policy separation, not just the raw DS).
+
+## Common Mistakes
+- Implementing LRU with a plain array/Map and `indexOf`/`splice` (O(n)) instead of HashMap + doubly linked list (O(1)) — a mistake this exact repo made twice in other files before Phase 0 fixed it.
+- Forgetting to update the LRU Cache's `prev`/`next` pointers on both ends when removing a node (classic off-by-reference bug).
+- Reading a key's value *after* deleting it from the cache in `get()` — deletes the value before you can read it, always returns `undefined`. A confirmed, real bug found in `12-Company/persistent-aws-backend-developer.md` during `/prep-analyze`.

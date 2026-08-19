@@ -1,3 +1,11 @@
+---
+topic: Trees
+level: advanced
+status: solid
+last_reviewed: 2026-08-19
+next_review: 2026-08-20
+---
+
 # Trees — Deep Dive
 
 ## Core Concepts
@@ -251,3 +259,29 @@ Need to find shortest path? → BFS
 Need to explore all paths? → DFS
 BST search? → DFS following BST property
 ```
+
+## Prerequisites
+[`04-stack-queue.md`](./04-stack-queue.md) (this file's efficient O(1) queue class is the correct implementation `levelOrder`/`rightSideView` below should be using — see Common Mistakes).
+
+## Related
+[`08-graphs.md`](./08-graphs.md) (DFS/BFS decision-making generalizes directly from trees to graphs). [`16-DSA-Practice/design/trie.js`](../16-DSA-Practice/design/trie.js) (a second Trie implementation with a working `delete()` this file's bonus Trie doesn't have — cross-linked both ways). `08-DSA/16-graph-advanced.md` (❌ not yet created — Fenwick Tree, a natural harder follow-up to this file's static-tree content, given its relevance to the OpenSearch/range-query story anchor per `_meta/KNOWLEDGE_GRAPH.md`).
+
+## Interview Questions (hardest first)
+1. Implement a Fenwick Tree (Binary Indexed Tree) with point-update + prefix-sum-query in O(log n) — connect it explicitly to the static Prefix Sum pattern in `08-DSA/12-prefix-sum.md` (static vs. dynamic range queries).
+2. Write `isBalanced(root)` as a function distinct from `isValidBST` — explain why interviewers conflate the two properties and why they're actually independent.
+3. Diameter of Binary Tree: explain the "compute height bottom-up while tracking max diameter as a side effect" two-birds-one-recursion pattern.
+4. Why does `levelOrder` using `queue.shift()` matter for correctness (it doesn't) vs. performance (it does) — quantify the difference at n=10,000 nodes.
+5. Implement Copy List with Random Pointer... (trick question — that's a linked-list problem, not a tree problem; the point is noticing the pattern doesn't apply here).
+
+## Exercises
+1. Rewrite `levelOrder` using an index-pointer queue instead of `shift()`, consistent with `04-stack-queue.md`'s own efficient-queue pattern — this file currently breaks that sibling file's explicitly stated rule.
+2. Implement a Fenwick Tree (Binary Indexed Tree).
+3. Write `isBalanced(root)` as a function distinct from `isValidBST`.
+
+## My Real-World Usage
+BST/tree-traversal reasoning underlies the OpenSearch inverted-index and B-Tree-based MySQL indexing both referenced in the UTEC OpenSearch migration story — the Fenwick Tree exercise above is deliberately linked to that story anchor for exactly this reason.
+
+## Common Mistakes
+- `levelOrder`/`rightSideView` in this very file use `queue.shift()` — the exact O(n) anti-pattern `04-stack-queue.md` explicitly warns against in its own Core Concepts section. Confirmed as a real, repo-internal inconsistency during `/prep-analyze` (the same bug recurs a third time in `08-DSA/11-mnc-frequently-asked.md` Q14).
+- Confusing "balanced" (height property) with "valid BST" (ordering property) — they're different checks, easy to conflate under interview pressure.
+- Asserting Floyd's-style or self-balancing-tree claims ("AVL/Red-Black give O(log n) height") without being able to show the rotation logic if pushed — this file states the claim, doesn't implement rotations, and that's a fine scope boundary as long as you know it's a boundary.

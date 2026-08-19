@@ -1,3 +1,11 @@
+---
+topic: Node.js Event Loop
+level: expert
+status: solid
+last_reviewed: 2026-08-19
+next_review: 2026-08-20
+---
+
 # Node.js Event Loop — Deep Dive
 
 ## Node.js Runtime Architecture
@@ -403,3 +411,30 @@ function good() {
     setImmediate(good); // runs in check phase, allows other phases to execute
 }
 ```
+
+## Prerequisites
+None — this is the repo's foundational Node.js file. Read this before `02-async-patterns.md`, `03-streams-workers.md`.
+
+## Related
+[`03-NodeJS/02-async-patterns.md`](./02-async-patterns.md) (Promise combinators build on the microtask model taught here) · [`03-NodeJS/03-streams-workers.md`](./03-streams-workers.md) (worker_threads vs. the libuv thread pool this file introduces) · [`01-JavaScript/04-mnc-frequently-asked.md`](../01-JavaScript/04-mnc-frequently-asked.md) Q22 (a condensed cram-companion restatement of this file's queue-priority ordering) · `17-CS-Fundamentals/os/01-processes-threads.md` (❌ not yet created — the natural "how does this map to OS threads" extension, per `_meta/MASTER_ROADMAP.md` Phase 1)
+
+## Interview Questions (hardest first)
+1. Trace the exact output order for a snippet mixing `process.nextTick`, a `.then()`-nested `process.nextTick`, `queueMicrotask`, and `setTimeout(fn, 0)` — explain why nextTick queues are drained in a `do...while` around the full V8 microtask drain, not interleaved job-by-job. (Verified correct against this exact scenario in `12-Company/recro-cheq-nodejs-prep.md` during `/prep-gaps` — worth cross-checking your answer against that file's traced explanation.)
+2. Why is `setTimeout(fn, 0)` vs. `setImmediate(fn)` ordering non-deterministic at the top level of the main module, but deterministic (`setImmediate` always first) inside an I/O callback?
+3. Which Node APIs use the libuv thread pool (default size 4) and which don't — and why does `dns.lookup()` use it while `dns.resolve()` doesn't?
+4. What's the practical failure mode of 4 slow `fs.readFile` calls plus 1 `dns.lookup()` call happening concurrently?
+5. Name three ways to detect that the event loop is blocked in production, without guessing from user complaints.
+6. Implement `monitorEventLoopDelay`-based alerting: what threshold, over how many consecutive checks, before you'd page someone?
+
+## Exercises
+1. Add an `AsyncLocalStorage` example carrying a correlation ID through an async call chain without manually passing `req`; compare directly against `03-NodeJS/05-express-design.md`'s manual middleware (the exercise this file's own `_meta/REPOSITORY_ANALYSIS.md` entry names).
+2. Find or construct a second real ReDoS-vulnerable regex beyond the one given here, and explain why it backtracks exponentially.
+3. Implement `monitorEventLoopDelay`-based alerting for real: fire a log line if `h.mean` exceeds a threshold for N consecutive checks.
+
+## My Real-World Usage
+UTEC's 245+ Lambda architecture and the Vkonnect EC2→Lambda migration both depend on this model directly — Lambda's execution environment is a single Node event loop per invocation, and understanding blocking/backpressure here is why the notification fan-out (moved behind SQS after a blocking incident, per `10-Interview-Prep/01-stories-behavioral.md`) needed fixing in the first place.
+
+## Common Mistakes
+- Assuming `setTimeout(fn, 0)` vs. `setImmediate(fn)` has one fixed order everywhere (it doesn't — see Q2 above; `12-Company/capgemini-L2-interview-prep.md` was flagged during `/prep-analyze` for stating this as deterministic without the caveat).
+- Treating `process.nextTick` as "just a faster setTimeout" instead of understanding it can starve I/O if called recursively.
+- Forgetting that `dns.lookup()` (thread-pool-bound) and `dns.resolve()` (c-ares, not thread-pool-bound) behave differently under thread-pool contention.

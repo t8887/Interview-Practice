@@ -1,3 +1,11 @@
+---
+topic: Networking Basics (HTTP/HTTPS, DNS, TCP/UDP, REST/WebSocket)
+level: expert
+status: solid
+last_reviewed: 2026-08-19
+next_review: 2026-08-20
+---
+
 # 📡 Networking Basics
 
 > **Chief Architect Note:** Every system design conversation starts with understanding how data physically travels. This is where your system's latency, security, and reliability are determined.
@@ -623,4 +631,30 @@ A: WebSocket doesn't send — connection is closed. The message is lost locally.
 - [ ] Do I understand head-of-line blocking and why it matters for video streaming?
 - [ ] Can I explain HTTP Keep-Alive and how it improves performance?
 - [ ] Do I know the difference between connection-oriented (TCP) and connectionless (UDP)?
+
+## Prerequisites
+None — foundational. Read before `02-scalability.md` (load balancers assume you know L4 vs L7).
+
+## Related
+[`07-System-Design/01-system-design-interview-prep.md`](./01-system-design-interview-prep.md) (this file's full technical depth vs. that file's one-line analogies for the same topics — read together as a warm-up + deep-dive pair). `17-CS-Fundamentals/networking/` (a light-touch pointer folder, not a duplicate — see its README for why this file already covers most of what that folder would otherwise re-derive).
+
+## Interview Questions (hardest first)
+1. Explain why QUIC (HTTP/3) avoids TCP's head-of-line blocking even though it still uses TLS — connect it explicitly to this file's own head-of-line-blocking section.
+2. Walk through the EY Risk.ai connection-pooling scenario end-to-end: what was the before/after number, and what specifically in `https.Agent` configuration caused the change?
+3. TLS 1.2 vs. 1.3 — why is 1.3 a 1-RTT handshake instead of 2-RTT, and what got removed to make that possible?
+4. Design the WebSocket architecture for a chat app with 3 backend server instances — why does a single WebSocket connection being stateful require either sticky sessions or a Redis Pub/Sub layer?
+5. `dns.resolveSoa()` returns only SOA records — name the correct method for MX and TXT records (this file's own code comment gets this wrong; know the fix).
+
+## Exercises
+1. Fix the misleading `dns.resolveSoa()` comment (claims "all record types," returns only SOA) and add a correct `dns.resolveMx()`/`dns.resolveTxt()` example.
+2. Extend the EY Risk.ai `https.Agent` example with a companion benchmark: instrument `maxSockets` at 8, 32, and 128 and explain the throughput/queuing trade-off observed at each.
+3. Add an HTTP/3 (QUIC) subsection matching the depth already given to TLS 1.3 — currently the one confirmed gap in an otherwise Expert-rated file.
+
+## My Real-World Usage
+This file's EY Risk.ai connection-pooling scenario (3 min → 3 sec, real numbers, real `https.Agent` code) IS a real-world usage section already embedded in the file itself — one of the only files in the repo that does this unprompted.
+
+## Common Mistakes
+- Treating HTTPS as "HTTP is now secure" without understanding the TLS handshake actually adds round-trips (1 for TLS 1.3, 2 for TLS 1.2) — a real latency cost, not a free security upgrade.
+- Assuming WebSocket "just works" across multiple backend servers without sticky sessions or a shared Pub/Sub layer.
+- Confusing `dns.lookup()` (uses the libuv thread pool, OS resolver) with `dns.resolve()` (uses c-ares, doesn't touch the thread pool) — same gotcha flagged in `03-NodeJS/01-event-loop.md`.
 
