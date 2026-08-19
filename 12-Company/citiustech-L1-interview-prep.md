@@ -888,51 +888,7 @@ HR Scheduling Call → Technical Round 1 (DSA/Coding) → Technical Round 2 (Sys
 
 **Expected difficulty:** Medium
 
-**Sample questions:**
-
-1. **React.memo to prevent re-renders:**
-   ```jsx
-   // Without memo: UserCard re-renders even if props haven't changed
-   function UserCard({ user }) {
-     return <div>{user.name} - {user.email}</div>;
-   }
-   
-   // With memo: UserCard only re-renders if user prop changes
-   const UserCard = React.memo(function UserCard({ user }) {
-     return <div>{user.name} - {user.email}</div>;
-   });
-   
-   function UserList({ users }) {
-     const [filter, setFilter] = useState('');
-     
-     return (
-       <>
-         <input value={filter} onChange={(e) => setFilter(e.target.value)} />
-         {users.map(user => <UserCard key={user.id} user={user} />)} {/* Only re-renders if user prop changes */}
-       </>
-     );
-   }
-   ```
-
-2. **Testing a component with React Testing Library:**
-   ```jsx
-   import { render, screen, fireEvent } from '@testing-library/react';
-   import UserForm from './UserForm';
-   
-   test('should submit form with user data', () => {
-     render(<UserForm onSubmit={jest.fn()} />);
-     
-     const nameInput = screen.getByPlaceholderText(/name/i);
-     const emailInput = screen.getByPlaceholderText(/email/i);
-     const submitButton = screen.getByRole('button', { name: /submit/i });
-     
-     fireEvent.change(nameInput, { target: { value: 'Onkar' } });
-     fireEvent.change(emailInput, { target: { value: 'onkar@example.com' } });
-     fireEvent.click(submitButton);
-     
-     expect(screen.getByText(/success/i)).toBeInTheDocument();
-   });
-   ```
+**Sample questions — full content, unchanged, moved to [`04-React/08-testing.md`](../04-React/08-testing.md)** during `/prep-restructure` (2026-08-19), per `_meta/INVENTORY.md`'s misfiled-content finding: the React.memo example and the RTL testing example.
 
 ### Interview Tips for React
 - **Show component thinking:** "I break down the UI into reusable, composable components"
