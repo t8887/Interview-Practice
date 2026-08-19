@@ -3,7 +3,7 @@
 > Sources: Lydia Hallie's JS Questions, GeeksforGeeks, AmbitionBox, Glassdoor, LeetCode Discuss, HackerRank, GreatFrontEnd
 > Companies: Google, Amazon, Flipkart, Atlassian, Razorpay, CRED, Swiggy, Microsoft, Paytm, Meesho, PhonePe, Uber, Meta
 > **Rule: Try to answer BEFORE looking at the output. That's how you actually learn.**
-> 📂 **Answers:** See `05-answers.md` for all solutions and explanations.
+> 📂 **Answers:** See `06-answers.md` for all solutions and explanations.
 
 ---
 
@@ -670,7 +670,7 @@ console.log(data);
 > **Sources:** LeetCode, GreatFrontEnd, BigFrontEnd, GeeksforGeeks, HackerRank, Glassdoor, AmbitionBox
 > **Companies:** Google, Amazon, Microsoft, Meta, Flipkart, Atlassian, Razorpay, CRED, Swiggy, Paytm, Meesho, PhonePe, Uber
 > **Rule: Try solving BEFORE looking at the solution. Write it in your editor, not just read it.**
-> 📂 **Solutions:** See `05-answers.md` for all solutions and explanations.
+> 📂 **Solutions:** See `06-answers.md` for all solutions and explanations.
 
 ---
 
@@ -1658,7 +1658,7 @@ console.log(flattenObject({ a: { b: 1, c: { d: 2 } }, e: 3 }));
 ---
 
 > **Study Strategy:**
-> 1. Attempt EVERY problem in your editor before checking `05-answers.md`
+> 1. Attempt EVERY problem in your editor before checking `06-answers.md`
 > 2. Time yourself — aim for 15-20 min per problem
 > 3. If stuck after 20 min, check the hint in the problem description, then try again
 > 4. Only check the full answer after a genuine attempt
