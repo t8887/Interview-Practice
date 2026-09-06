@@ -19,7 +19,7 @@
                ▼                                         │
    GitHub private repo: Interview-Practice               │
    ├── 01-JavaScript/ … 20-Redis-OpenSearch/  (content)  │
-   └── site/                                  (this app) │
+   └── prepverse/                             (this app) │
                │ webhook                                 │
                ▼                                         │
    Cloudflare Pages FREE build ──► build-content.ts ──► next build ──► privacy canary ──► deploy
@@ -107,7 +107,7 @@ Format: options considered → decision → consequences. **Claude Code: do not 
 - **Decision: A.** One store, sliced: `progress`, `xp`, `streak`, `missions`, `settings`.
 
 ### ADR-09 · Repo topology & deployment
-- **A. Monorepo: `site/` folder inside `Interview-Practice`** — content read via `../` at build; atomic commits touch note + site together; one webhook; zero sync machinery. Cloudflare Pages: root dir `site`, build `npm run build`, output `site/out`.
+- **A. Monorepo: `prepverse/` folder inside `Interview-Practice`** — content read via `../` at build; atomic commits touch note + site together; one webhook; zero sync machinery. Cloudflare Pages: root dir `prepverse`, build `npm run build`, output `prepverse/out`.
 - B. Two repos + a GitHub Action that rsyncs allowlisted content into the site repo — cleaner isolation, more moving parts. Pre-approved v2 if the repo gets heavy.
 - C. Git submodule — private-submodule auth on CI is fiddly. Rejected.
 - **Decision: A**, protected by the **privacy canary** (§8) because the build machine can see private folders even though the output must not.
@@ -126,7 +126,7 @@ Format: options considered → decision → consequences. **Claude Code: do not 
 Interview-Practice/
 ├── 01-JavaScript/ … 20-Redis-OpenSearch/     # content (write model) — unchanged
 ├── .claude/commands/prep-*.md                # existing prep system — untouched
-├── site/                                     # THE APP (everything below is new)
+├── prepverse/                                # THE APP (everything below is new)
 │   ├── CLAUDE.md                             # Claude Code contract for this folder (doc 08 §3)
 │   ├── .claude/commands/pv-*.md              # pv task-runner commands (doc 08 §3)
 │   ├── docs/ARCHITECTURE.md                  # = this file, copied in

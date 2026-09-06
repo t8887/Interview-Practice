@@ -121,6 +121,6 @@
   ],
   "problem_log_count": 0,
   "current_week": 1,
-  "last_command": "prep-restructure",
-  "updated": "2026-08-19 (prep-restructure: steps 1-8 complete on branch 'restructure'; 10/~100 files linked, run again to continue)"
+  "last_command": "prep-company",
+  "updated": "2026-09-03 (prep-company: created 12-Company/kaiser-permanente-node-fullstack.md + INDEX row; flagged 3 curriculum gaps: sqlserver-oracle-delta, docker-kubernetes, node testing)"
 }

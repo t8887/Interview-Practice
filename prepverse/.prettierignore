@@ -1,0 +1,7 @@
+.next/
+out/
+node_modules/
+public/data/
+
+# Hand-authored prose — not Prettier's job (docs/, CLAUDE.md, AGENTS.md)
+*.md

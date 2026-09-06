@@ -212,63 +212,79 @@
 // // // fruit.unshift('🍇');
 // // console.log(fruit);
 
-// // function bubbleSort(arr) {
-// //     let sortedArr = []
-// //     for (let i = 0; i < arr.length; i++) {
-// //     for (let j = i+1; j < arr.length-1; j++) {
-// //         const element1 = arr[i];
-// //         const element2 = arr[j];
-// //             console.log(element1, element2, i , j)
-// //         if(element1 < element2){
-// //             arr[i] = element1;
-// //             arr[j] = element2;
-// //         }else {
-// //             arr[i] = element2;
-// //             arr[j] = element1;
-// //         }
-// //     }
-// //     }
-// //     return arr;
-// // }
+// function bubbleSort(arr) {
+//     let sortedArr = []
+//     for (let i = 0; i < arr.length; i++) {
+//     for (let j = i+1; j < arr.length-1; j++) {
+//         const element1 = arr[i];
+//         const element2 = arr[j];
+//             console.log(element1, element2, i , j)
+//         if(element1 < element2){
+//             arr[i] = element1;
+//             arr[j] = element2;
+//         }else {
+//             arr[i] = element2;
+//             arr[j] = element1;
+//         }
+//     }
+//     }
+//     return arr;
+// }
 
 // // // Test:
 // // console.log(bubbleSort([64, 34, 25, 12, 22, 11, 90]));
 // // Expected: [11, 12, 22, 25, 34, 64, 90]
 
-// // function bubbleSort(arr) {
-// //     for (let i = 0; i < arr.length; i++) {
-// //         for (let j = 0; j < arr.length - i - 1; j++) {
+// function bubbleSort(arr) {
+//     for (let i = 0; i < arr.length; i++) {
+//         for (let j = 0; j < arr.length - i - 1; j++) {
+//             console.log(arr[j], arr[j + 1]);
+//             if (arr[j] > arr[j + 1]) {
+//                 // swap
+//                 // let temp = arr[j];
+//                 // arr[j] = arr[j + 1];
+//                 // arr[j + 1] = temp;
+//                 [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
+//             }
+//         }
+//     }
+//     return arr;
+// }
 
-// //             console.log(j, j + 1 )
-// //             if (arr[j] > arr[j + 1]) {
-// //                 // swap
-// //                 let temp = arr[j];
-// //                 arr[j] = arr[j + 1];
-// //                 arr[j + 1] = temp;
-// //             }
-// //         }
-// //     }
-// //     return arr;
-// // }
+// console.log(bubbleSort([64, 34, 25, 12, 22, 11, 90]));
 
-// // console.log(bubbleSort([64, 34, 25, 12, 22, 11, 90]));
+// function twoSum(nums, target) {
+//     const arr = []
+//     for (let i = 0; i < nums.length-1; i++) {
+//     for (let j = 0; j < nums.length-1-1; j++) {
+//         const element1 = nums[i];
+//         const element2 = nums[j];
+//         if(element1 + element2 === target){
+//             arr.push([i ,j])
+//         }
+//         }
+//     }
+//     return arr
+// }
 
-// // function twoSum(nums, target) {
-// //     const arr = []
-// //     for (let i = 0; i < nums.length-1; i++) {
-// //     for (let j = 0; j < nums.length-1-1; j++) {
-// //         const element1 = nums[i];
-// //         const element2 = nums[j];
-// //         if(element1 + element2 === target){
-// //             arr.push([i ,j])
-// //         }
-// //         }
-// //     }
-// //     return arr
-// // }
+function twoSum(nums, target) {
+    const map = new Map();
+
+    for (let i = 0; i < nums.length; i++) {
+        const complement = target - nums[i];
+
+        if (map.has(complement)) {
+            return [map.get(complement), i];
+        }
+
+        map.set(nums[i], i);
+    }
+
+    return [];
+}
 
 // // // Test:
-// console.log(twoSum([2,3,6, 7, 11, 15], 9));  // [0, 1]
+console.log(twoSum([2,3,6, 7, 11, 15], 9));  // [0, 1]
 // console.log(twoSum([3, 2, 4], 6));
 
 // // function twoSum(nums, target) {
