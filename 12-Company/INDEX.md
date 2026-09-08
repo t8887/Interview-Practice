@@ -22,6 +22,7 @@
 | [Infosys](./infosys-L2-interview-prep.md) | L2 Engineer | Enterprise | — | [Guide](./infosys-L2-interview-prep.md) |
 | [Persistent](./persistent-aws-backend-developer.md) | Backend Developer | AWS | — | [Guide](./persistent-aws-backend-developer.md) |
 | [TCS](./tcs-L2-hr-preparation.md) | L2 HR Round | Enterprise | — | [Guide](./tcs-L2-hr-preparation.md) |
+| [Kaiser Permanente](./kaiser-permanente-node-fullstack.md) | IT Applications Engineer — Node.js Full Stack (India GCC) | US healthcare payer-provider — Epic/HealthConnect ecosystem, SQL Server/Oracle, Azure-leaning, Kafka, K8s | 21 (link-first, no JSON) | [Guide](./kaiser-permanente-node-fullstack.md) |
 
 ---
 

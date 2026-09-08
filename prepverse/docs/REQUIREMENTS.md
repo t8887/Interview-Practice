@@ -7,7 +7,7 @@
 
 ## 0. How to use this document as a prompt
 
-**For Claude Code (one-time):** during the boot sequence (doc 08 §3.6), this file is copied to `site/docs/REQUIREMENTS.md`. From then on, `/pv-task` sessions cite the FR ids their task implements, and any ambiguity in a task is resolved by reading its FRs here — *not* by inventing behavior. If a requirement seems wrong or conflicting, the session must stop and propose an FR edit, never silently deviate (same change-control rule as the ADRs).
+**For Claude Code (one-time):** during the boot sequence (doc 08 §3.6), this file is copied to `prepverse/docs/REQUIREMENTS.md`. From then on, `/pv-task` sessions cite the FR ids their task implements, and any ambiguity in a task is resolved by reading its FRs here — *not* by inventing behavior. If a requirement seems wrong or conflicting, the session must stop and propose an FR edit, never silently deviate (same change-control rule as the ADRs).
 
 **For you:** this is the checklist of "what done means" per feature. When you wonder mid-build "wait, what exactly should missions do?" — the answer is F7, in eleven lines, with the tasks that build it.
 

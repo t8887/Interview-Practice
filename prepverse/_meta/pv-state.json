@@ -1,0 +1,7 @@
+{
+  "current": "M0",
+  "done": ["M0-T01"],
+  "notes": [
+    "M0-T01: Next.js 16 (App Router, TS strict, output:'export', images.unoptimized) scaffolded into prepverse/ via temp-dir merge; ESLint+Prettier wired (markdown excluded from Prettier); tsc/build/dev all verified green."
+  ]
+}

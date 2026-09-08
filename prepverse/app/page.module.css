@@ -1,0 +1,17 @@
+/* Placeholder only — hardcoded --ink/--web values from BUILD_PLAN §7.
+   Replaced by app/tokens.css in M0-T02; a raw hex outside tokens.css
+   is a defect from that task onward (prepverse/CLAUDE.md hard rule 6). */
+.main {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0b0b16;
+}
+
+.issue {
+  color: #e9e4d8;
+  font-family: system-ui, sans-serif;
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+}

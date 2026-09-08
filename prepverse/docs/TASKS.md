@@ -11,7 +11,7 @@
 
 ### M0 — Foundations (~1 evening + first weekend morning · goal: deployed hello-screen on your phone)
 
-**M0-T01 · Repo privacy + workspace init** — Flip `Interview-Practice` to private (precondition for everything). Create `site/` with Next.js (App Router, TS strict), ESLint+Prettier, `output:'export'`, `images:{unoptimized:true}`, `distDir` default.
+**M0-T01 · Repo privacy + workspace init** — Flip `Interview-Practice` to private (precondition for everything). Create `prepverse/` with Next.js (App Router, TS strict), ESLint+Prettier, `output:'export'`, `images:{unoptimized:true}`, `distDir` default.
 AC: `npm run dev` serves a placeholder; `npm run build` emits `out/index.html`; `tsc --noEmit` clean. Deps: —. Est: S.
 
 **M0-T02 · tokens.css + base layout** — Create `app/tokens.css` with the exact palette/type/motion tokens from doc 06 §7 (`--ink --panel --web --spider --dimension --charge --venom`, radii, durations, `steps(12)` helper, reduced-motion block). Global styles: ink background, Inter body (Google Fonts for now), focus-visible ring in `--charge`.
@@ -20,10 +20,10 @@ AC: placeholder page renders ink-dark with correct text color in light & dark ph
 **M0-T03 · Privacy rails** — Add `site.allowlist.json` + `privacy.rules.json` exactly per arch §5.4. Write `scripts/privacy-canary.ts` (walk `out/`, regex scan text files, print hits with 40-char context, exit 1) + npm script `canary`.
 AC: seeding a fake `+91 88xxx` into a page makes `npm run build && npm run canary` fail; removing it passes. Deps: T01. Est: M. Learn: CI thinking, regex.
 
-**M0-T04 · Claude Code contract** — Install `site/CLAUDE.md` and `.claude/commands/pv-*.md` from §3 of this doc verbatim; create `_meta/pv-state.json` `{ "current": "M0", "done": [], "notes": [] }`; copy docs 06/07/08 into `site/docs/`.
+**M0-T04 · Claude Code contract** — Install `prepverse/CLAUDE.md` and `.claude/commands/pv-*.md` from §3 of this doc verbatim; create `_meta/pv-state.json` `{ "current": "M0", "done": [], "notes": [] }`; copy docs 06/07/08 into `prepverse/docs/`.
 AC: `/pv-status` responds with backlog position. Deps: T01. Est: S.
 
-**M0-T05 · Cloudflare Pages hookup** — Create CF Pages project from the private repo: root dir `site`, build `npm ci && npm run build && npm run canary`... (order: canary must run AFTER export — set build command `npm ci && npm run pipeline` where `pipeline` = `build-content || true`-less strict chain defined in package.json as `prebuild`+`build`+`canary` sequence via `npm-run-all -s`). Output dir `site/out`.
+**M0-T05 · Cloudflare Pages hookup** — Create CF Pages project from the private repo: root dir `prepverse`, build `npm ci && npm run build && npm run canary`... (order: canary must run AFTER export — set build command `npm ci && npm run pipeline` where `pipeline` = `build-content || true`-less strict chain defined in package.json as `prebuild`+`build`+`canary` sequence via `npm-run-all -s`). Output dir `prepverse/out`.
 AC: push → auto-deploy → `*.pages.dev` opens on your phone; a canary-failing commit shows a failed deploy. Deps: T01, T03. Est: M.
 
 **M0-T06 · Vitest wiring** — Add vitest + first trivial test (schema smoke). AC: `npm test` green in <5 s. Deps: T01. Est: S.
@@ -177,7 +177,7 @@ M6-T01 Pagefind search (`/search`) · M6-T02 hand-written service worker + manif
 
 Why this shape: specs live on disk (`docs/ARCHITECTURE.md`, `docs/TASKS.md`), state lives in `_meta/pv-state.json`, and each session loads **one task's spec + only the files that task names** — instead of re-explaining the whole vision per prompt. That's the entire token-efficiency strategy: context by reference, not repetition; resumability by state file, not chat memory.
 
-### 3.1 `site/CLAUDE.md` (verbatim)
+### 3.1 `prepverse/CLAUDE.md` (verbatim)
 
 ````markdown
 # PrepVerse — Claude Code contract
@@ -287,7 +287,7 @@ Never push with a failing canary under any circumstances.
 ### 3.6 Boot sequence (one paste, ~3 minutes)
 
 1. Repo → **private** (still the true step zero).
-2. In VS Code, open `Interview-Practice`, start Claude Code, paste this whole document, and say: *"Create `site/CLAUDE.md`, the four `.claude/commands/pv-*.md` files, and `_meta/pv-state.json` exactly as specified in §3; also copy docs 06/07/08/10 from my Downloads into `site/docs/` as BUILD_PLAN.md, ARCHITECTURE.md, TASKS.md, REQUIREMENTS.md."*
+2. In VS Code, open `Interview-Practice`, start Claude Code, paste this whole document, and say: *"Create `prepverse/CLAUDE.md`, the four `.claude/commands/pv-*.md` files, and `_meta/pv-state.json` exactly as specified in §3; also copy docs 06/07/08/10 from my Downloads into `prepverse/docs/` as BUILD_PLAN.md, ARCHITECTURE.md, TASKS.md, REQUIREMENTS.md."*
 3. Run `/pv-next` → it will point at **M0-T01**.
 4. From then on, the loop is: `/pv-next` → `/pv-task <id>` → commit → (weekends only, DSA-first, Deal enforced).
 

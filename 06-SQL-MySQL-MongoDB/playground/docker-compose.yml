@@ -1,0 +1,63 @@
+# =====================================================================
+# sqlplay — MySQL 8.4 LTS interview playground
+# =====================================================================
+#   make up      -> start, seeded and ready
+#   make shell   -> mysql CLI inside the container
+#   make reset   -> back to the exact seeded state (< 10s)
+#   make verify  -> run the full verification suite
+#
+# Port 3307 on purpose: it will not collide with a MySQL you already
+# have listening on 3306.
+#
+# Why 8.4 and not 8.0: MySQL 8.0 reached end of life on 2026-04-30.
+# 8.4 LTS and 9.x are the supported lines. See ../COMPATIBILITY.md for
+# what changed — the one that will bite you first is that
+# mysql_native_password is gone by default, which breaks old clients.
+# =====================================================================
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: sqlplay-mysql
+    restart: unless-stopped
+    command:
+      # Slow-query log on from the start — QUERY_OPTIMIZATION.md uses it.
+      - --slow-query-log=ON
+      - --slow-query-log-file=/var/log/mysql/slow.log
+      - --long-query-time=0.2
+      # Deadlock detail for 17-CS-Fundamentals/database-internals/03-deadlock-lab.md
+      - --innodb-print-all-deadlocks=ON
+      # Keep the default 50s lock wait; the transaction labs rely on the
+      # timeout being long enough to inspect state between steps.
+      - --innodb-lock-wait-timeout=50
+      - --local-infile=1
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-sqlplay}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-sqlplay}
+      MYSQL_USER: ${MYSQL_USER:-sqlplay}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-sqlplay}
+    ports:
+      - "${MYSQL_PORT:-3307}:3306"
+    volumes:
+      - sqlplay-data:/var/lib/mysql
+      # Init scripts run once, in filename order, on an empty data dir.
+      # 01 schema -> 02 compat views -> 03 seed. The numbering is the
+      # dependency order; do not rename these.
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./compat.sql:/docker-entrypoint-initdb.d/02-compat.sql:ro
+      - ./seed.sql:/docker-entrypoint-initdb.d/03-seed.sql:ro
+      # Mounted (not copied) so you can edit and re-run without rebuilding.
+      - ./reset.sql:/sqlplay/reset.sql:ro
+      - ./verify.sh:/sqlplay/verify.sh:ro
+      - ./solutions:/sqlplay/solutions:ro
+      - ./expected:/sqlplay/expected
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-sqlplay}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+volumes:
+  sqlplay-data:
+    name: sqlplay-data

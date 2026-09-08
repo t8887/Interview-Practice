@@ -19,3 +19,9 @@
 { "inventory_done": false, "files_analyzed": [], "files_pending": [], "gaps_done": false,
   "roadmap_done": false, "curricula_done": [], "restructure_done": false,
   "problem_log_count": 0, "current_week": null, "last_command": null, "updated": null }
+
+## PrepVerse project
+The PrepVerse app lives in prepverse/. Before any pv-* work, read
+prepverse/CLAUDE.md and obey it; its rules (₹0, static-only, privacy
+never-list, tokens-only styling, owner-writes-graph-algorithms) override
+convenience. One task per session via /pv-task.
